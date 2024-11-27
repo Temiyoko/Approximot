@@ -4,20 +4,21 @@ import 'package:flutter/services.dart';
 import 'firebase_options.dart';
 import 'package:projet/views/screens/splash_screen.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  runApp(const MyApp());
 
-  await SystemChrome.setEnabledSystemUIMode(
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    await SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge, 
   );
 
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    systemNavigationBarColor: Colors.transparent,
-    statusBarColor: Colors.transparent,
-    systemNavigationBarIconBrightness: Brightness.light,
-    statusBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.light,
-  ));
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+      statusBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.light,
+    ));
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -29,6 +30,11 @@ void main() async {
   );
 
   runApp(const MyApp());
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  });
 }
 
 class MyApp extends StatelessWidget {

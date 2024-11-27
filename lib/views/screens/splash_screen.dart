@@ -17,16 +17,29 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<double> _textSlideAnimation;
   late Animation<double> _textFadeAnimation;
 
+  bool _animationsInitialized = false; // Flag to check if animations are initialized
+
   @override
   void initState() {
     super.initState();
     
-    // Logo animations
+    // Initialize controllers immediately
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
+    
+    _textController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
 
+    // Setup animations
+    _setupAnimations();
+    _startAnimations();
+  }
+
+  void _setupAnimations() {
     _logoScaleAnimation = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(begin: 0.0, end: 1.5)
@@ -48,12 +61,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
     ));
 
-    // Text animations
-    _textController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-
     _textSlideAnimation = Tween<double>(
       begin: 50.0,
       end: 0.0,
@@ -69,13 +76,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       parent: _textController,
       curve: Curves.easeIn,
     ));
+  }
 
-    // Start animations sequence
+  void _startAnimations() {
     _logoController.forward().then((_) {
       _textController.forward();
     });
 
-    // Navigate after animations complete
     Future.delayed(const Duration(milliseconds: 3000), () {
       if (mounted) {
         Navigator.pushReplacement(
@@ -84,8 +91,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             pageBuilder: (context, animation1, animation2) => const HomeScreen(),
             transitionDuration: const Duration(milliseconds: 500),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
+              const begin = Offset(1.0, 0.0); // Start from the right
+              const end = Offset.zero; // End at the center
+              const curve = Curves.easeInOut;
+
+              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              var offsetAnimation = animation.drive(tween);
+
+              return SlideTransition(
+                position: offsetAnimation,
                 child: child,
               );
             },
