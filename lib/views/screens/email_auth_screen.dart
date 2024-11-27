@@ -45,7 +45,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
               backgroundColor: Colors.green,
               behavior: SnackBarBehavior.floating,
               margin: EdgeInsets.only(
-                bottom: MediaQuery.of(context).size.height - 100,
+                bottom: MediaQuery.of(context).size.height - 130,
                 right: 20,
                 left: 20,
               ),
@@ -172,16 +172,19 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Connexion par email',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    fontFamily: 'Poppins',
+                Padding(
+                  padding: const EdgeInsets.only(top: 20.0),
+                  child: Text(
+                    'Connexion par email',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                      fontFamily: 'Poppins',
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 28),
                 const Text(
                   'Entrez votre adresse email pour créer ou accéder à votre compte',
                   style: TextStyle(
@@ -190,7 +193,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                     fontFamily: 'Poppins',
                   ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 38),
                 TextFormField(
                   controller: _emailController,
                   enabled: !_showPasswordField,
@@ -225,7 +228,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                   keyboardType: TextInputType.emailAddress,
                 ),
                 if (!_showPasswordField) ...[
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 38),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -258,7 +261,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                   ),
                 ],
                 if (_showPasswordField) ...[
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 38),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -299,7 +302,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 38),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
