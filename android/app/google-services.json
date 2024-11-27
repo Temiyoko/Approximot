@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "127797921459",
+    "project_id": "approximot-2-0",
+    "storage_bucket": "approximot-2-0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:127797921459:android:96cbb64ec6f7ae954752c6",
+        "android_client_info": {
+          "package_name": "com.approximot.projet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "127797921459-6rpp5bh7smevgk8ofruprp72c9b1a9jr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.approximot.projet",
+            "certificate_hash": "d8d801cea28f0ffa350b2946b8a495eb0390ac9e"
+          }
+        },
+        {
+          "client_id": "127797921459-r1420nmgm6eq3kgo4ijr8ribccshskia.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAMufWVumrUiIWHse7AeoDQyTfTS70jfEM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "127797921459-r1420nmgm6eq3kgo4ijr8ribccshskia.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "127797921459-19hgnmd5p1gtmntou8fe2fi7koe4qeu0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.approximot.projet"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,7 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'email_auth_screen.dart';
+import 'main_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    checkEmailVerification();
+    checkAuthState();
+  }
+
+  void checkAuthState() {
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null && mounted) {
+        if (user.metadata.creationTime?.isAfter(
+              DateTime.now().subtract(const Duration(seconds: 10)),
+            ) ??
+            false) {
+          return;
+        }
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const MainScreen(),
+          ),
+          (route) => false,
+        );
+      }
+    });
+  }
+
+  Future<void> checkEmailVerification() async {
+    final auth = FirebaseAuth.instance;
+    
+    if (auth.isSignInWithEmailLink(Uri.base.toString())) {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('emailForSignIn');
+      
+      if (email != null) {
+        try {
+          final userCredential = await auth.signInWithEmailLink(
+            email: email,
+            emailLink: Uri.base.toString(),
+          );
+          
+          await prefs.remove('emailForSignIn');
+
+          if (mounted && userCredential.user != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Connexion réussie !'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur lors de la connexion: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +92,7 @@ class LoginScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
       body: SafeArea(
+        top: false,
         child: Stack(
           children: [
             Positioned.fill(
@@ -85,7 +159,12 @@ class LoginScreen extends StatelessWidget {
                         padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.1),
                         child: ElevatedButton(
                           onPressed: () {
-                            // Action à faire en cas de click
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const EmailAuthScreen(),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -97,7 +176,7 @@ class LoginScreen extends StatelessWidget {
                             minimumSize: Size(screenWidth * 0.8, 48),
                           ),
                           child: const Text(
-                            'Se connecter',
+                            'Continuer avec Email',
                             style: TextStyle(
                               color: Color(0xFF303030),
                               fontSize: 18,
