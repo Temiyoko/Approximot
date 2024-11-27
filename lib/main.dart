@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:projet/views/screens/home_screen.dart';
+import './views/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,7 +47,7 @@ class MyApp extends StatelessWidget {
           child: child!,
         );
       },
-      home: const HomeScreen(),
+      home: const SplashScreen(),
     );
   }
 }
