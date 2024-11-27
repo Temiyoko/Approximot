@@ -17,8 +17,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<double> _textSlideAnimation;
   late Animation<double> _textFadeAnimation;
 
-  bool _animationsInitialized = false; // Flag to check if animations are initialized
-
   @override
   void initState() {
     super.initState();
