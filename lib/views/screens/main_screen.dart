@@ -6,6 +6,14 @@ import 'home_screen.dart';
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
+  String _getUserInfo() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return "Vous êtes connecté en tant qu'invité";
+    }
+    return user.email ?? "Vous êtes connecté en tant qu'invité";
+  }
+
   void _signOut(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
@@ -20,7 +28,6 @@ class MainScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
@@ -51,7 +58,7 @@ class MainScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              user?.email ?? '',
+              _getUserInfo(),
               style: const TextStyle(
                 fontSize: 16,
                 color: Colors.white70,
