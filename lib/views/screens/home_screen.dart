@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/google_auth_service.dart';
 import 'email_auth_screen.dart';
 import 'main_screen.dart';
 
@@ -78,12 +79,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const LoginScreen();
+    return LoginScreen();
   }
 }
 
 class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+  final GoogleAuthService _googleAuthService = GoogleAuthService();
+
+  LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +157,7 @@ class LoginScreen extends StatelessWidget {
                   // Buttons
                   Column(
                     children: [
-                      // Bouton "Se connecter"
+                      // Bouton "Continuer avec Email"
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.1),
                         child: ElevatedButton(
@@ -190,8 +193,27 @@ class LoginScreen extends StatelessWidget {
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.1),
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            // Action en cas de click
+                          onPressed: () async {
+                            try {
+                              final userCredential = await _googleAuthService.signInWithGoogle();
+                              if (userCredential != null) {
+                                if (context.mounted) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const MainScreen()),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Erreur de connexion: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -220,7 +242,10 @@ class LoginScreen extends StatelessWidget {
                       // Bouton "Jouer en tant qu'invité"
                       TextButton(
                         onPressed: () {
-                          // Action en cas de click
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const MainScreen()),
+                          );
                         },
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16),

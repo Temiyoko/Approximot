@@ -63,6 +63,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '127797921459',
     projectId: 'approximot-2-0',
     storageBucket: 'approximot-2-0.firebasestorage.app',
+    androidClientId: '127797921459-6rpp5bh7smevgk8ofruprp72c9b1a9jr.apps.googleusercontent.com',
+    iosClientId: '127797921459-19hgnmd5p1gtmntou8fe2fi7koe4qeu0.apps.googleusercontent.com',
     iosBundleId: 'com.approximot.projet',
   );
 
