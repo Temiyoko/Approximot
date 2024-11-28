@@ -241,27 +241,33 @@ class LoginScreen extends StatelessWidget {
                       const SizedBox(height: 20),
                       // Bouton "Jouer en tant qu'invité"
                       TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => const MainScreen()),
-                          );
-                        },
+                        onPressed: () => _handleGuestLogin(context),
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
                           splashFactory: NoSplash.splashFactory,
                         ).copyWith(
-                          overlayColor: WidgetStateProperty.all(Colors.transparent),
+                          overlayColor: MaterialStateProperty.all(Colors.transparent),
                         ),
-                        child: const Text(
-                          "Jouer en tant qu'invité",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            decoration: TextDecoration.underline,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.white,
+                                width: 1.0,
+                                style: BorderStyle.solid,
+                              ),
+                            ),
+                          ),
+                          child: const Text(
+                            "Jouer en tant qu'invité",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),
@@ -274,6 +280,13 @@ class LoginScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _handleGuestLogin(BuildContext context) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const MainScreen()),
     );
   }
 }
