@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/google_auth_service.dart';
 import 'email_auth_screen.dart';
 import 'main_screen.dart';
+import '../../utils/page_transitions.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -88,6 +89,13 @@ class LoginScreen extends StatelessWidget {
 
   LoginScreen({super.key});
 
+  void _handleGuestLogin(BuildContext context) {
+    Navigator.pushReplacement(
+      context,
+      PageTransitions.slideTransition(const MainScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -164,9 +172,7 @@ class LoginScreen extends StatelessWidget {
                           onPressed: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => const EmailAuthScreen(),
-                              ),
+                              PageTransitions.slideTransition(const EmailAuthScreen())
                             );
                           },
                           style: ElevatedButton.styleFrom(
@@ -200,7 +206,7 @@ class LoginScreen extends StatelessWidget {
                                 if (context.mounted) {
                                   Navigator.pushReplacement(
                                     context,
-                                    MaterialPageRoute(builder: (context) => const MainScreen()),
+                                    PageTransitions.slideTransition(const MainScreen()),
                                   );
                                 }
                               }
@@ -250,7 +256,7 @@ class LoginScreen extends StatelessWidget {
                           ),
                           splashFactory: NoSplash.splashFactory,
                         ).copyWith(
-                          overlayColor: MaterialStateProperty.all(Colors.transparent),
+                          overlayColor: WidgetStateProperty.all(Colors.transparent),
                         ),
                         child: Container(
                           decoration: const BoxDecoration(
@@ -280,13 +286,6 @@ class LoginScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  void _handleGuestLogin(BuildContext context) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const MainScreen()),
     );
   }
 }
