@@ -101,6 +101,54 @@ class MainScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: Container(
+        height: 80,
+        color: const Color(0xFF303030),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.2),
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.keyboard_alt_outlined, size: 24),
+                color: Colors.white,
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                onPressed: () {
+                  print("Clicked on Lexitom");
+                },
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.public, size: 24),
+              color: Colors.white30,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              onPressed: () {
+                print("Clicked on Wikitom");
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.settings, size: 24),
+              color: Colors.white30,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              onPressed: () {
+                print("Clicked on Settings");
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 } 
