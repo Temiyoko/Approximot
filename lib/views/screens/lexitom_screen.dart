@@ -104,12 +104,15 @@ class MainScreen extends StatelessWidget {
           if (index != 0) {
             Navigator.pushReplacement(
               context,
-              PageTransitions.slideTransition(
-                switch (index) {
-                  1 => const WikiGameScreen(),
-                  2 => const SettingsScreen(),
-                  _ => const MainScreen(),
-                },
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => 
+                  switch (index) {
+                    1 => const WikiGameScreen(),
+                    2 => const SettingsScreen(),
+                    _ => const MainScreen(),
+                  },
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
               ),
             );
           }

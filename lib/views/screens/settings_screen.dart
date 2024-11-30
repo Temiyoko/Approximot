@@ -27,12 +27,15 @@ class SettingsScreen extends StatelessWidget {
           if (index != 2) {
             Navigator.pushReplacement(
               context,
-              PageTransitions.slideTransition(
-                switch (index) {
-                  0 => const MainScreen(),
-                  1 => const WikiGameScreen(),
-                  _ => const SettingsScreen(),
-                },
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => 
+                  switch (index) {
+                    0 => const MainScreen(),
+                    1 => const WikiGameScreen(),
+                    _ => const SettingsScreen(),
+                  },
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
               ),
             );
           }

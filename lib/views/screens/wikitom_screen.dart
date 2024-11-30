@@ -28,12 +28,15 @@ class WikiGameScreen extends StatelessWidget {
           if (index != 1) {
             Navigator.pushReplacement(
               context,
-              PageTransitions.slideTransition(
-                switch (index) {
-                  0 => const MainScreen(),
-                  2 => const SettingsScreen(),
-                  _ => const WikiGameScreen(),
-                },
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => 
+                  switch (index) {
+                    0 => const MainScreen(),
+                    2 => const SettingsScreen(),
+                    _ => const WikiGameScreen(),
+                  },
+                transitionDuration: Duration.zero,
+                reverseTransitionDuration: Duration.zero,
               ),
             );
           }
