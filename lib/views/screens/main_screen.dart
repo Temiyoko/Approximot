@@ -36,13 +36,6 @@ class MainScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Approximot',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
       body: Center(
         child: Column(
