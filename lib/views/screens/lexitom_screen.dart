@@ -22,9 +22,7 @@ class MainScreen extends StatelessWidget {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-        ),
+        PageTransitions.slideTransitionRightToLeft(const HomeScreen()),
         (route) => false,
       );
     }
