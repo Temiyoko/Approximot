@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_svg/svg.dart';
 
 import 'home_screen.dart';
 
@@ -119,7 +120,7 @@ class MainScreen extends StatelessWidget {
                 ],
               ),
               child: IconButton(
-                icon: const Icon(Icons.keyboard_alt_outlined, size: 24),
+                icon: const Icon(Icons.mode_edit_outline, size: 24),
                 color: Colors.white,
                 splashColor: Colors.transparent,
                 highlightColor: Colors.transparent,
@@ -129,8 +130,15 @@ class MainScreen extends StatelessWidget {
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.public, size: 24),
-              color: Colors.white30,
+              icon: SvgPicture.asset(
+                'assets/images/wikitom_logo.svg',
+                width: 24,
+                height: 24,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white30,
+                  BlendMode.srcIn,
+                ),
+              ),
               splashColor: Colors.transparent,
               highlightColor: Colors.transparent,
               onPressed: () {
