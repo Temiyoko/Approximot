@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_svg/svg.dart';
 
 import 'home_screen.dart';
+import 'wikitom_screen.dart';
+import 'settings_screen.dart';
+import '../widgets/custom_bottom_bar.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -36,13 +38,6 @@ class MainScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Approximot',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
       body: Center(
         child: Column(
@@ -102,60 +97,22 @@ class MainScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        height: 80,
-        color: const Color(0xFF303030),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    blurRadius: 15,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.mode_edit_outline, size: 24),
-                color: Colors.white,
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                onPressed: () {
-                  print("Clicked on Lexitom");
+      bottomNavigationBar: CustomBottomBar(
+        currentIndex: 0,
+        onTap: (index) {
+          if (index != 0) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => switch (index) {
+                  1 => const WikiGameScreen(),
+                  2 => const SettingsScreen(),
+                  _ => const MainScreen(),
                 },
               ),
-            ),
-            IconButton(
-              icon: SvgPicture.asset(
-                'assets/images/wikitom_logo.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Colors.white30,
-                  BlendMode.srcIn,
-                ),
-              ),
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              onPressed: () {
-                print("Clicked on Wikitom");
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.settings, size: 24),
-              color: Colors.white30,
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              onPressed: () {
-                print("Clicked on Settings");
-              },
-            ),
-          ],
-        ),
+            );
+          }
+        },
       ),
     );
   }

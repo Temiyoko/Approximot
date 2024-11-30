@@ -7,6 +7,7 @@ class GoogleAuthService {
 
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      await signOut();
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
       if (googleUser == null) {
@@ -22,7 +23,7 @@ class GoogleAuthService {
 
       return await _auth.signInWithCredential(credential);
     } catch (e) {
-      throw Exception('Erreur lors de la connexion Google: $e');
+      throw Exception('Erreur lors de la connexion Google, veuillez réessayer');
     }
   }
 
