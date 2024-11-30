@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/google_auth_service.dart';
 import 'email_auth_screen.dart';
-import 'main_screen.dart';
+import 'lexitom_screen.dart';
 import '../../utils/page_transitions.dart';
 
 class HomeScreen extends StatefulWidget {
