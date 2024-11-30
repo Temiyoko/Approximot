@@ -40,9 +40,44 @@ class MyApp extends StatelessWidget {
       title: 'Approximot',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.amberAccent),
+        colorScheme: const ColorScheme.light(
+          primary: Colors.black,
+          secondary: Colors.black,
+          tertiary: Colors.black,
+          surface: Colors.white,
+          background: Colors.white,
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: Colors.black,
+        ),
         useMaterial3: true,
+        splashColor: Colors.grey.withOpacity(0.1),
+        highlightColor: Colors.grey.withOpacity(0.05),
+        splashFactory: InkRipple.splashFactory,
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(foregroundColor: Colors.black),
+        ),
       ),
+      darkTheme: ThemeData(
+        colorScheme: const ColorScheme.light(
+          primary: Colors.black,
+          secondary: Colors.black,
+          tertiary: Colors.black,
+          surface: Colors.white,
+          background: Colors.white,
+          onPrimary: Colors.white,
+          onSecondary: Colors.white,
+          onSurface: Colors.black,
+        ),
+        useMaterial3: true,
+        splashColor: Colors.grey.withOpacity(0.1),
+        highlightColor: Colors.grey.withOpacity(0.05),
+        splashFactory: InkRipple.splashFactory,
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(foregroundColor: Colors.black),
+        ),
+      ),
+      themeMode: ThemeMode.light,
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
