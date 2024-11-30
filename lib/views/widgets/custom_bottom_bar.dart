@@ -37,30 +37,47 @@ class CustomBottomBar extends StatelessWidget {
 
   Widget _buildIcon(int index, IconData icon) {
     final bool isSelected = currentIndex == index;
-    return AnimatedScale(
-      scale: isSelected ? 1.2 : 1.0,
-      duration: const Duration(milliseconds: 200),
-      child: Container(
-        decoration: isSelected ? BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withOpacity(0.3),
-              blurRadius: 15,
-              spreadRadius: 1,
+    return Tooltip(
+      preferBelow: false,
+      verticalOffset: 50,
+      message: _getTooltipText(index),
+      textStyle: const TextStyle(
+        fontSize: 14,
+        fontFamily: 'Poppins',
+        color: Colors.white,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF303030),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 0.5,
+        ),
+      ),
+      child: AnimatedScale(
+        scale: isSelected ? 1.2 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          decoration: isSelected ? BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.3),
+                blurRadius: 15,
+                spreadRadius: 1,
+              ),
+            ],
+          ) : null,
+          child: IconButton(
+            icon: Icon(
+              icon,
+              size: 24,
             ),
-          ],
-        ) : null,
-        child: IconButton(
-          icon: Icon(
-            icon,
-            size: 24,
+            color: isSelected ? Colors.white : Colors.white30,
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            onPressed: () => onTap(index),
           ),
-          color: isSelected ? Colors.white : Colors.white30,
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          tooltip: _getTooltipText(index),
-          onPressed: () => onTap(index),
         ),
       ),
     );
@@ -68,34 +85,51 @@ class CustomBottomBar extends StatelessWidget {
 
   Widget _buildWikiIcon(int index) {
     final bool isSelected = currentIndex == index;
-    return AnimatedScale(
-      scale: isSelected ? 1.2 : 1.0,
-      duration: const Duration(milliseconds: 200),
-      child: Container(
-        decoration: isSelected ? BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withOpacity(0.3),
-              blurRadius: 15,
-              spreadRadius: 1,
+    return Tooltip(
+      preferBelow: false,
+      verticalOffset: 50,
+      message: _getTooltipText(index),
+      textStyle: const TextStyle(
+        fontSize: 14,
+        fontFamily: 'Poppins',
+        color: Colors.white,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF303030),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 0.5,
+        ),
+      ),
+      child: AnimatedScale(
+        scale: isSelected ? 1.2 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          decoration: isSelected ? BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.3),
+                blurRadius: 15,
+                spreadRadius: 1,
+              ),
+            ],
+          ) : null,
+          child: IconButton(
+            icon: SvgPicture.asset(
+              'assets/images/wikitom_logo.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                isSelected ? Colors.white : Colors.white30,
+                BlendMode.srcIn,
+              ),
             ),
-          ],
-        ) : null,
-        child: IconButton(
-          icon: SvgPicture.asset(
-            'assets/images/wikitom_logo.svg',
-            width: 24,
-            height: 24,
-            colorFilter: ColorFilter.mode(
-              isSelected ? Colors.white : Colors.white30,
-              BlendMode.srcIn,
-            ),
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            onPressed: () => onTap(index),
           ),
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          tooltip: _getTooltipText(index),
-          onPressed: () => onTap(index),
         ),
       ),
     );
@@ -105,7 +139,7 @@ class CustomBottomBar extends StatelessWidget {
     return switch (index) {
       0 => 'Lexitom',
       1 => 'Wikitom',
-      2 => 'Settings',
+      2 => 'Paramètres',
       _ => '',
     };
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_bar.dart';
-import '../../utils/page_transitions.dart';
 import 'lexitom_screen.dart';
 import 'wikitom_screen.dart';
 
@@ -17,7 +16,7 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Settings Screen',
+          'Paramètres',
           style: TextStyle(color: Colors.white),
         ),
       ),
