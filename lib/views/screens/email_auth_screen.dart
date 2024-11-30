@@ -101,7 +101,6 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         if (_isNewUser && e.code == 'invalid-credential') {
           _errorMessage = 'Veuillez utiliser le lien reçu par email afin de réinitialiser votre mot de passe';
         } else {
-          print(e.code);
           _errorMessage = switch (e.code) {
             'invalid-credential' => 'Le mot de passe est incorrect',
             'user-disabled' => 'Ce compte a été désactivé',

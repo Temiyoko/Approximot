@@ -16,7 +16,7 @@ class WikiGameScreen extends StatelessWidget {
       ),
       body: const Center(
         child: Text(
-          'Wikitom Screen',
+          'Wikitom',
           style: TextStyle(color: Colors.white),
         ),
       ),
