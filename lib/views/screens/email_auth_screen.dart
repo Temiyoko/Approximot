@@ -68,9 +68,9 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         _showPasswordField = true;
         _isLoading = false;
       });
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       setState(() {
-        _errorMessage = 'Une erreur est survenue: ${e.message}';
+        _errorMessage = 'Une erreur est survenue lors de la création du compte. Veuillez réessayer';
         _isLoading = false;
       });
     }
@@ -101,7 +101,14 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         if (_isNewUser && e.code == 'invalid-credential') {
           _errorMessage = 'Veuillez utiliser le lien reçu par email afin de réinitialiser votre mot de passe';
         } else {
-          _errorMessage = 'Erreur de connexion: ${e.message}';
+          print(e.code);
+          _errorMessage = switch (e.code) {
+            'invalid-credential' => 'Le mot de passe est incorrect',
+            'user-disabled' => 'Ce compte a été désactivé',
+            'too-many-requests' => 'Trop de tentatives de connexion. Veuillez réessayer plus tard',
+            'network-request-failed' => 'Problème de connexion internet. Veuillez vérifier votre connexion',
+            _ => 'Une erreur est survenue. Veuillez réessayer'
+          };
         }
       });
     } finally {
@@ -129,9 +136,9 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
           _errorMessage = 'Un email vous a été envoyé pour réinitialiser votre mot de passe.';
         });
       }
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       setState(() {
-        _errorMessage = 'Erreur: ${e.message}';
+        _errorMessage = 'Une erreur est survenue lors de l\'envoi de l\'email. Veuillez réessayer';
       });
     } finally {
       if (mounted) {
@@ -288,6 +295,14 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                         ? 'Veuillez entrer le mot de passe'
                         : null,
                   ),
+                  if (_errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
                   if (!_isNewUser)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
@@ -334,14 +349,6 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                     ),
                   ),
                 ],
-                if (_errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
               ],
             ),
           ),

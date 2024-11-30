@@ -49,27 +49,24 @@ class _HomeScreenState extends State<HomeScreen> {
       
       if (email != null) {
         try {
-          final userCredential = await auth.signInWithEmailLink(
+          await auth.signInWithEmailLink(
             email: email,
             emailLink: Uri.base.toString(),
           );
-          
-          await prefs.remove('emailForSignIn');
 
-          if (mounted && userCredential.user != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Connexion réussie !'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+          await prefs.remove('emailForSignIn');
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Erreur lors de la connexion: $e'),
+                content: Text('Erreur lors de la connexion, veuillez réessayer'),
                 backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).size.height - 100,
+                  right: 20,
+                  left: 20,
+                ),
               ),
             );
           }
@@ -213,10 +210,16 @@ class LoginScreen extends StatelessWidget {
                             } catch (e) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Erreur de connexion: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
+                                    SnackBar(
+                                      content: Text("Erreur de connexion veuillez réessayer"),
+                                      backgroundColor: Colors.red,
+                                      behavior: SnackBarBehavior.floating,
+                                      margin: EdgeInsets.only(
+                                        bottom: MediaQuery.of(context).size.height - 100,
+                                        right: 20,
+                                        left: 20,
+                                      ),
+                                    ),
                                 );
                               }
                             }
