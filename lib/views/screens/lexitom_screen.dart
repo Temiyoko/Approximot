@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../utils/page_transitions.dart';
 
 import 'home_screen.dart';
 import 'wikitom_screen.dart';
@@ -103,8 +104,8 @@ class MainScreen extends StatelessWidget {
           if (index != 0) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => switch (index) {
+              PageTransitions.slideTransition(
+                switch (index) {
                   1 => const WikiGameScreen(),
                   2 => const SettingsScreen(),
                   _ => const MainScreen(),

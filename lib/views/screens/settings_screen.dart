@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_bottom_bar.dart';
+import '../../utils/page_transitions.dart';
 import 'lexitom_screen.dart';
 import 'wikitom_screen.dart';
 
@@ -26,8 +27,8 @@ class SettingsScreen extends StatelessWidget {
           if (index != 2) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => switch (index) {
+              PageTransitions.slideTransition(
+                switch (index) {
                   0 => const MainScreen(),
                   1 => const WikiGameScreen(),
                   _ => const SettingsScreen(),
