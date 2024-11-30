@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import './home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -89,8 +89,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             pageBuilder: (context, animation1, animation2) => const HomeScreen(),
             transitionDuration: const Duration(milliseconds: 700),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0); // Start from the right
-              const end = Offset.zero; // End at the center
+              const begin = Offset(1.0, 0.0);
+              const end = Offset.zero;
               const curve = Curves.easeInOut;
 
               var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
@@ -131,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   child: Opacity(
                     opacity: _logoFadeAnimation.value,
                     child: SvgPicture.asset(
-                      'assets/images/bulbResized.svg',
+                      'assets/images/bulb_resized.svg',
                       width: 120,
                       height: 120,
                       colorFilter: const ColorFilter.mode(
