@@ -87,7 +87,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           context,
           PageRouteBuilder(
             pageBuilder: (context, animation1, animation2) => const HomeScreen(),
-            transitionDuration: const Duration(milliseconds: 1000),
+            transitionDuration: const Duration(milliseconds: 700),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0); // Start from the right
               const end = Offset.zero; // End at the center
