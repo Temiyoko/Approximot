@@ -15,10 +15,14 @@ class WikiGameScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: const Center(
-        child: Text(
-          'Wikitom',
-          style: TextStyle(color: Colors.white),
-        ),
+          child: Text(
+            'WikiTom',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontFamily: 'Poppins',
+            ),
+          ),
       ),
       bottomNavigationBar: CustomBottomBar(
         currentIndex: 1,
