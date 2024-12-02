@@ -38,7 +38,7 @@ class SettingsScreen extends StatelessWidget {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w500,
               fontFamily: 'Poppins',
             ),
           ),
@@ -153,6 +153,98 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  void _showDeleteAccountConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF303030),
+        title: const Text(
+          'Supprimer le compte ?', 
+          style: TextStyle(color: Colors.white, fontFamily: 'Poppins')
+        ),
+        content: const Text(
+          'Cette action est irréversible. Toutes vos données seront définitivement supprimées.',
+          style: TextStyle(color: Colors.white70, fontFamily: 'Poppins'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: Colors.blue, fontFamily: 'Poppins'),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _showFinalDeleteConfirmation(context);
+            },
+            child: const Text(
+              'Continuer',
+              style: TextStyle(color: Colors.red, fontFamily: 'Poppins'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFinalDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF303030),
+        title: const Text(
+          'Confirmation',
+          style: TextStyle(color: Colors.white, fontFamily: 'Poppins')
+        ),
+        content: const Text(
+          'Êtes-vous vraiment sûr de vouloir supprimer votre compte ? Cette action ne peut pas être annulée.',
+          style: TextStyle(color: Colors.white70, fontFamily: 'Poppins'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: Colors.blue, fontFamily: 'Poppins'),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await FirebaseAuth.instance.currentUser?.delete();
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    PageTransitions.slideTransitionRightToLeft(const HomeScreen()),
+                    (route) => false,
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Une erreur est survenue. Veuillez vous reconnecter et réessayer.',
+                        style: TextStyle(fontFamily: 'Poppins'),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text(
+              'Supprimer définitivement',
+              style: TextStyle(color: Colors.red, fontFamily: 'Poppins'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -249,7 +341,7 @@ class SettingsScreen extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w500,
                       fontFamily: 'Poppins',
                     ),
                   ),
@@ -258,6 +350,40 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
+          if (FirebaseAuth.instance.currentUser != null) ...[
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.1),
+              child: ElevatedButton(
+                onPressed: () => _showDeleteAccountConfirmation(context),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: const Color(0xFF303030),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  elevation: 6,
+                  minimumSize: Size(MediaQuery.of(context).size.width * 0.8, 48),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.delete_forever, color: Colors.red),
+                    SizedBox(width: 10),
+                    Text(
+                      'Supprimer le compte',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
         ],
       ),
       bottomNavigationBar: CustomBottomBar(
