@@ -52,14 +52,19 @@ dev_dependencies:
 
 flutter_native_splash:
   color: "#1A1A1A"
-  image: assets/images/logo_splash.png
+  image: assets/images/iconTransparent.png
+  color_dark: "#1A1A1A"
+  image_dark: assets/images/iconTransparent.png
   android_12:
-    image: assets/images/logo_splash.png
-    color: "#1A1A1A"
+    image: assets/images/iconTransparent.png
+    icon_background_color: "#1A1A1A"
+    image_dark: assets/images/iconTransparent.png
+    color_dark: "#1A1A1A"
   ios: true
   android: true
   web: false
-
+  fullscreen: true
+  
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
