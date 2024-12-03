@@ -157,198 +157,216 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        toolbarHeight: 100,
-        leading: Padding(
-          padding: const EdgeInsets.only(top: 50.0),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
+    return Theme(
+      data: Theme.of(context).copyWith(
+        textSelectionTheme: TextSelectionThemeData(
+          selectionColor: const Color(0xFFF1E173).withOpacity(0.3),
+          selectionHandleColor: const Color(0xFFF1E173),
+          cursorColor: const Color(0xFFF1E173),
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 20.0),
-                  child: Text(
-                    'Connexion par email',
+      child: Scaffold(
+        backgroundColor: const Color(0xFF1A1A1A),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          toolbarHeight: 100,
+          leading: Padding(
+            padding: const EdgeInsets.only(top: 50.0),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20.0),
+                    child: Text(
+                      'Connexion par email',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Entrez votre adresse email pour créer ou accéder à votre compte',
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
+                      fontSize: 16,
+                      color: Colors.white70,
                       fontFamily: 'Poppins',
                     ),
                   ),
-                ),
-                const SizedBox(height: 28),
-                const Text(
-                  'Entrez votre adresse email pour créer ou accéder à votre compte',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 38),
-                TextFormField(
-                  controller: _emailController,
-                  enabled: !_showPasswordField,
-                  style: TextStyle(
-                    color: _showPasswordField ? Colors.white38 : Colors.white,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Email',
-                    hintStyle: const TextStyle(color: Colors.white54),
-                    filled: true,
-                    fillColor: _showPasswordField 
-                        ? const Color(0xFF252525)
-                        : const Color(0xFF303030),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide.none,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.email,
-                      color: _showPasswordField ? Colors.white38 : Colors.white54,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Veuillez entrer votre email';
-                    }
-                    if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                      return 'Veuillez entrer un email valide';
-                    }
-                    return null;
-                  },
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                if (!_showPasswordField) ...[
-                  const SizedBox(height: 38),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _continueWithEmail,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF303030)),
-                              ),
-                            )
-                          : const Text(
-                              'Continuer',
-                              style: TextStyle(
-                                color: Color(0xFF303030),
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-                if (_showPasswordField) ...[
                   const SizedBox(height: 38),
                   TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    style: const TextStyle(color: Colors.white),
+                    controller: _emailController,
+                    enabled: !_showPasswordField,
+                    style: TextStyle(
+                      color: _showPasswordField ? Colors.white38 : Colors.white,
+                    ),
+                    cursorColor: const Color(0xFFF1E173),
                     decoration: InputDecoration(
-                      hintText: 'Mot de passe',
+                      hintText: 'Email',
                       hintStyle: const TextStyle(color: Colors.white54),
                       filled: true,
-                      fillColor: const Color(0xFF303030),
+                      fillColor: _showPasswordField 
+                          ? const Color(0xFF252525)
+                          : const Color(0xFF303030),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(15),
                         borderSide: BorderSide.none,
                       ),
-                      prefixIcon: const Icon(Icons.lock, color: Colors.white54),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                          color: Colors.white54,
-                        ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      prefixIcon: Icon(
+                        Icons.email,
+                        color: _showPasswordField ? Colors.white38 : Colors.white54,
                       ),
                     ),
-                    validator: (value) => value == null || value.isEmpty
-                        ? 'Veuillez entrer le mot de passe'
-                        : null,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer votre email';
+                      }
+                      if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        return 'Veuillez entrer un email valide';
+                      }
+                      return null;
+                    },
+                    keyboardType: TextInputType.emailAddress,
                   ),
-                  if (_errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
+                  if (!_showPasswordField) ...[
+                    const SizedBox(height: 38),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _continueWithEmail,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF303030)),
+                                ),
+                              )
+                            : const Text(
+                                'Continuer',
+                                style: TextStyle(
+                                  color: Color(0xFF303030),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
-                  if (!_isNewUser)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: TextButton(
-                        onPressed: _isLoading ? null : _resetPassword,
-                        child: const Text(
-                          'Mot de passe oublié ?',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            decoration: TextDecoration.underline,
+                  ],
+                  if (_showPasswordField) ...[
+                    const SizedBox(height: 38),
+                    TextSelectionTheme(
+                      data: TextSelectionThemeData(
+                        selectionHandleColor: const Color(0xFFF1E173),
+                        cursorColor: const Color(0xFFF1E173),
+                        selectionColor: const Color(0xFFF1E173).withOpacity(0.3),
+                      ),
+                      child: TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        style: const TextStyle(color: Colors.white),
+                        cursorColor: const Color(0xFFF1E173),
+                        decoration: InputDecoration(
+                          hintText: 'Mot de passe',
+                          hintStyle: const TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: const Color(0xFF303030),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          prefixIcon: const Icon(Icons.lock, color: Colors.white54),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                              color: Colors.white54,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Veuillez entrer le mot de passe'
+                            : null,
+                      ),
+                    ),
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    if (!_isNewUser)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: TextButton(
+                          onPressed: _isLoading ? null : _resetPassword,
+                          child: const Text(
+                            'Mot de passe oublié ?',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  const SizedBox(height: 38),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _signIn,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                    const SizedBox(height: 38),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _signIn,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
                         ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF303030)),
+                                ),
+                              )
+                            : Text(
+                                _isNewUser ? 'Définir le mot de passe' : 'Se connecter',
+                                style: const TextStyle(
+                                  color: Color(0xFF303030),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF303030)),
-                              ),
-                            )
-                          : Text(
-                              _isNewUser ? 'Définir le mot de passe' : 'Se connecter',
-                              style: const TextStyle(
-                                color: Color(0xFF303030),
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

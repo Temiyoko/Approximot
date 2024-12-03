@@ -7,7 +7,8 @@ import 'home_screen.dart';
 import '../../utils/page_transitions.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final bool fromContainer;
+  const SettingsScreen({super.key, this.fromContainer = false});
 
   String _getUserInfo() {
     final user = FirebaseAuth.instance.currentUser;
@@ -386,7 +387,7 @@ class SettingsScreen extends StatelessWidget {
           ],
         ],
       ),
-      bottomNavigationBar: CustomBottomBar(
+      bottomNavigationBar: fromContainer ? null : CustomBottomBar(
         currentIndex: 2,
         onTap: (index) {
           if (index != 2) {

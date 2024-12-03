@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/google_auth_service.dart';
 import 'email_auth_screen.dart';
-import 'lexitom_screen.dart';
 import '../../utils/page_transitions.dart';
+import 'main_screen_container.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (context) => const MainScreen(),
+            builder: (context) => const MainScreenContainer(initialIndex: 0),
           ),
           (route) => false,
         );
@@ -89,7 +89,7 @@ class LoginScreen extends StatelessWidget {
   void _handleGuestLogin(BuildContext context) {
     Navigator.pushReplacement(
       context,
-      PageTransitions.slideTransition(const MainScreen()),
+      PageTransitions.slideTransition(const MainScreenContainer(initialIndex: 0)),
     );
   }
 
@@ -203,7 +203,7 @@ class LoginScreen extends StatelessWidget {
                                 if (context.mounted) {
                                   Navigator.pushReplacement(
                                     context,
-                                    PageTransitions.slideTransition(const MainScreen()),
+                                    PageTransitions.slideTransition(const MainScreenContainer(initialIndex: 0)),
                                   );
                                 }
                               }

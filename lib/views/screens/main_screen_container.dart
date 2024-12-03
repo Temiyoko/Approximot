@@ -18,16 +18,17 @@ class MainScreenContainer extends StatefulWidget {
 
 class _MainScreenContainerState extends State<MainScreenContainer> {
   late int _currentIndex;
-  final List<Widget> _screens = [
-    const MainScreen(),
-    const WikiGameScreen(),
-    const SettingsScreen(),
-  ];
+  late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _screens = [
+      const MainScreen(fromContainer: true),
+      const WikiGameScreen(fromContainer: true),
+      const SettingsScreen(fromContainer: true),
+    ];
   }
 
   @override

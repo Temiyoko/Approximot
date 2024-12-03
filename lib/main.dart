@@ -1,9 +1,11 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'firebase_options.dart';
 import 'package:projet/views/screens/splash_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'services/word_embedding_service.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +31,18 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await WordEmbeddingService.instance.loadModel();
+
+  if (WordEmbeddingService.instance.isLoaded) {
+    if (kDebugMode) {
+      print('Model is loaded and ready to use');
+    }
+  } else {
+    if (kDebugMode) {
+      print('Model failed to load');
+    }
+  }
 
   FlutterNativeSplash.remove();
   runApp(const MyApp());

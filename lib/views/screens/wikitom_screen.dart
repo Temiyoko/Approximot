@@ -4,7 +4,8 @@ import 'lexitom_screen.dart';
 import 'settings_screen.dart';
 
 class WikiGameScreen extends StatelessWidget {
-  const WikiGameScreen({super.key});
+  final bool fromContainer;
+  const WikiGameScreen({super.key, this.fromContainer = false});
 
   @override
   Widget build(BuildContext context) {
@@ -15,16 +16,16 @@ class WikiGameScreen extends StatelessWidget {
         elevation: 0,
       ),
       body: const Center(
-          child: Text(
-            'WikiTom',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontFamily: 'Poppins',
-            ),
+        child: Text(
+          'WikiTom',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontFamily: 'Poppins',
           ),
+        ),
       ),
-      bottomNavigationBar: CustomBottomBar(
+      bottomNavigationBar: fromContainer ? null : CustomBottomBar(
         currentIndex: 1,
         onTap: (index) {
           if (index != 1) {
