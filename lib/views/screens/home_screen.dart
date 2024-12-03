@@ -143,7 +143,7 @@ class LoginScreen extends StatelessWidget {
                       children: [
                         const SizedBox(height: 180),
                         Image.asset(
-                          'assets/images/IconNormal.png',
+                          'assets/images/icon_transparent.png',
                           height: 96,
                         ),
                         const Text(

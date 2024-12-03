@@ -77,7 +77,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset(
-                'assets/images/IconNormal.png',
+                'assets/images/icon_transparent.png',
                 height: 96,
               ),
               const SizedBox(height: 8),

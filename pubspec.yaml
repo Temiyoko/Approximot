@@ -52,14 +52,14 @@ dev_dependencies:
 
 flutter_native_splash:
   color: "#1A1A1A"
-  image: assets/images/iconTransparent.png
+  image: assets/images/icon_transparent_small.png
   color_dark: "#1A1A1A"
-  image_dark: assets/images/iconTransparent.png
+  image_dark: assets/images/icon_transparent_small.png
   
   android_12:
-    image: assets/images/iconTransparent.png
+    image: assets/images/icon_transparent_small.png
     icon_background_color: "#1A1A1A"
-    image_dark: assets/images/iconTransparent.png
+    image_dark: assets/images/icon_transparent_small.png
     color_dark: "#1A1A1A"
     
   ios: true
