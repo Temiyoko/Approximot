@@ -34,9 +34,9 @@ class CustomBottomBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildNavItem(0, 'assets/images/lexitom_logo.svg', 'Lexitom'),
-          _buildNavItem(1, 'assets/images/wikitom_logo.svg', 'Wikitom'),
-          _buildNavItem(2, 'assets/images/settings_logo.svg', 'Paramètres'),
+          _buildNavItem(0, 'assets/images/lexitom.svg', 'Lexitom'),
+          _buildNavItem(1, 'assets/images/wiki.svg', 'WikiTom'),
+          _buildNavItem(2, 'assets/images/settings.svg', 'Paramètres'),
         ],
       ),
     );
@@ -88,10 +88,6 @@ class CustomBottomBar extends StatelessWidget {
                     svgPath,
                     width: 24,
                     height: 24,
-                    colorFilter: ColorFilter.mode(
-                      isSelected ? Colors.white : Colors.white30,
-                      BlendMode.srcIn,
-                    ),
                   ),
                 ),
               ),
