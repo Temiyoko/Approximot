@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../../main.dart';
 import 'wikitom_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/custom_bottom_bar.dart';
 import '../../services/daily_timer_service.dart';
+import '../../services/word_embedding_service.dart';
 
 class MainScreen extends StatefulWidget {
   final bool fromContainer;
@@ -18,6 +21,12 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   Timer? _timer;
   String _timeUntilMidnight = '';
   final Color pastelYellow = const Color(0xFFF1E173);
+  final List<GuessResult> _guesses = [];
+  final List<String> _history = [];
+  bool _isLoading = false;
+  String? _errorMessage;
+  String? _lastWord;
+  GuessResult? _lastGuessResult;
 
   @override
   bool get wantKeepAlive => true;
@@ -26,7 +35,22 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   void initState() {
     super.initState();
     _updateTimer();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTimer());
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateTimer();
+
+      if (_lastWord != null && currentWord != null && currentWord != _lastWord) {
+        setState(() {
+          if (_lastGuessResult != null && _lastGuessResult!.isCorrect) {
+            _guesses.insert(0, _lastGuessResult!);
+            _history.insert(0, _lastWord!);
+          }
+          _lastGuessResult = null;
+          _lastWord = currentWord;
+        });
+      } else if (_lastWord == null && currentWord != null) {
+        _lastWord = currentWord;
+      }
+    });
   }
 
   @override
@@ -42,6 +66,99 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     setState(() {
       _timeUntilMidnight = DailyTimerService.formatDuration(timeLeft);
     });
+  }
+
+  String _cleanWord(String word) {
+    return word
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'[^a-z\-]'), '');
+  }
+
+  Future<void> _handleGuess() async {
+    if (!mounted) return;
+
+    final guess = _cleanWord(_controller.text);
+    if (guess.isEmpty) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final similarity = await WordEmbeddingService.instance.getSimilarity(guess, currentWord ?? '');
+
+      if (!mounted) return;
+
+      if (similarity != null) {
+        final guessResult = GuessResult(
+          word: guess,
+          similarity: similarity,
+          isCorrect: guess == currentWord,
+        );
+
+        setState(() {
+          if (_lastGuessResult != null) {
+            final existingIndex = _guesses.indexWhere((g) => g.word == _lastGuessResult!.word);
+            if (existingIndex == -1) {
+              _guesses.insert(0, _lastGuessResult!);
+            }
+          }
+          
+          _lastGuessResult = guessResult;
+          _controller.clear();
+          
+          if (guessResult.isCorrect) {
+            _lastWord = guessResult.word;
+          }
+        });
+
+        if (guess == currentWord) {
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (BuildContext context) => AlertDialog(
+                title: const Text('Félicitations !'),
+                content: Text('Vous avez trouvé le mot : $currentWord'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+      }
+    } on WordNotFoundException {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Ce mot n\'existe pas dans le dictionnaire';
+          _isLoading = false;
+        });
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            setState(() {
+              _errorMessage = null;
+            });
+          }
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking guess: $e');
+      }
+      if (mounted) {
+        setState(() {
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -93,7 +210,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       body: SafeArea(
         child: Column(
           children: [
-            // Previous days summary
             Container(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -152,7 +268,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               ),
             ),
 
-            // Game status with actual timer
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -169,7 +284,9 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          'Prochain mot dans $_timeUntilMidnight',
+                          currentWord != null
+                              ? 'Prochain mot dans $_timeUntilMidnight'
+                              : 'Chargement...',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,
@@ -183,7 +300,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               ),
             ),
 
-            // Input area
             Container(
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -196,14 +312,17 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                   Expanded(
                     child: TextSelectionTheme(
                       data: TextSelectionThemeData(
-                        selectionHandleColor: pastelYellow,  // Handles color
-                        cursorColor: pastelYellow,          // Cursor color
-                        selectionColor: pastelYellow.withOpacity(0.3),  // Highlight color
+                        selectionHandleColor: pastelYellow,
+                        cursorColor: pastelYellow,
+                        selectionColor: pastelYellow.withOpacity(0.3),
                       ),
                       child: TextField(
                         controller: _controller,
                         style: const TextStyle(color: Colors.white),
                         cursorColor: pastelYellow,
+                        keyboardType: TextInputType.text,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _handleGuess(),
                         decoration: InputDecoration(
                           hintText: 'Entrez votre proposition...',
                           hintStyle: TextStyle(color: Colors.grey[400]),
@@ -216,9 +335,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                   Container(
                     margin: const EdgeInsets.all(4),
                     child: ElevatedButton(
-                      onPressed: () {
-                        // Handle guess submission
-                      },
+                      onPressed: _isLoading ? null : _handleGuess,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: pastelYellow.withOpacity(0.9),
                         shape: RoundedRectangleBorder(
@@ -226,41 +343,174 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       ),
-                      child: const Text(
-                        'Proposer',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text(
+                              'Proposer',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Empty state
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.search, size: 64, color: Colors.grey[700]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Commencez à jouer !',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 18,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                    ],
+            if (_errorMessage != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(bottom: 17.0),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _errorMessage!,
+                  style: TextStyle(
+                    color: Colors.red[400],
+                    fontSize: 14,
+                    fontFamily: 'Poppins',
                   ),
                 ),
               ),
+
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A2A2A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _lastGuessResult?.isCorrect == true
+                      ? Colors.green
+                      : pastelYellow.withOpacity(0.3),
+                  width: _lastGuessResult?.isCorrect == true ? 2 : 1,
+                ),
+              ),
+              child: _lastGuessResult != null
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _lastGuessResult!.word,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          '${(_lastGuessResult!.similarity * 100).toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            color: _lastGuessResult!.isCorrect ? Colors.green : Colors.white,
+                            fontSize: 18,
+                            fontFamily: 'Poppins',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Votre dernière proposition',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 16,
+                            fontFamily: 'Poppins',
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+
+            const SizedBox(height: 16),
+
+           Divider(
+             color: pastelYellow,
+             thickness: 1,
+             height: 1,
+             indent: 16,
+             endIndent: 16,
+           ),
+
+           const SizedBox(height: 16),
+
+            Expanded(
+              child: _guesses.isEmpty
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.search, size: 64, color: Colors.grey[700]),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Commencez à jouer !',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 18,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _guesses.length,
+                      itemBuilder: (context, index) {
+                        final sortedGuesses = List<GuessResult>.from(_guesses)
+                          ..sort((a, b) => b.similarity.compareTo(a.similarity));
+                        final guess = sortedGuesses[index];
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: guess.isCorrect
+                                  ? Colors.green
+                                  : pastelYellow.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                guess.word,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                              Text(
+                                '${(guess.similarity * 100).toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  color: guess.isCorrect
+                                      ? Colors.green
+                                      : Colors.white,
+                                  fontSize: 16,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -268,7 +518,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       bottomNavigationBar: widget.fromContainer ? null : CustomBottomBar(
         currentIndex: 0,
         onTap: (index) {
-          if (index != 0) {
+          if (index != 0 && mounted) {
             Navigator.pushReplacement(
               context,
               PageRouteBuilder(
@@ -287,4 +537,16 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       ),
     );
   }
+}
+
+class GuessResult {
+  final String word;
+  final double similarity;
+  final bool isCorrect;
+
+  GuessResult({
+    required this.word,
+    required this.similarity,
+    required this.isCorrect,
+  });
 }
