@@ -44,6 +44,9 @@ class CustomBottomBar extends StatelessWidget {
 
   Widget _buildNavItem(int index, String svgPath, String label) {
     final bool isSelected = currentIndex == index;
+    final bool isLexitom = svgPath.contains('lexitom.svg');
+    const double iconSize = 24;
+    
     return Tooltip(
       preferBelow: false,
       verticalOffset: 50,
@@ -75,19 +78,31 @@ class CustomBottomBar extends StatelessWidget {
                 scale: isSelected ? 1.2 : 1.0,
                 duration: const Duration(milliseconds: 200),
                 child: Container(
+                  padding: const EdgeInsets.all(8),
+                  width: iconSize + 16,
+                  height: iconSize + 16,
                   decoration: isSelected ? BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.3),
-                        blurRadius: 15,
-                        spreadRadius: 1,
-                      ),
-                    ],
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.15),
+                        Colors.white.withOpacity(0.05),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                      radius: 0.8,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
                   ) : null,
-                  child: SvgPicture.asset(
-                    svgPath,
-                    width: 24,
-                    height: 24,
+                  child: Center(
+                    child: SvgPicture.asset(
+                      svgPath,
+                      width: isLexitom ? iconSize * 1.2 : iconSize,
+                      height: isLexitom ? iconSize * 1.2 : iconSize,
+                    ),
                   ),
                 ),
               ),
