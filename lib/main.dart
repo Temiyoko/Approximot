@@ -7,6 +7,8 @@ import 'package:projet/views/screens/splash_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/word_embedding_service.dart';
 
+String? currentWord;
+
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -35,8 +37,15 @@ void main() async {
   await WordEmbeddingService.instance.loadModel();
 
   if (WordEmbeddingService.instance.isLoaded) {
-    if (kDebugMode) {
-      print('Model is loaded and ready to use');
+    try {
+      currentWord = await WordEmbeddingService.instance.getRandomWord();
+      if (kDebugMode) {
+        print('Initial word to find: $currentWord');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting initial word: $e');
+      }
     }
   } else {
     if (kDebugMode) {
