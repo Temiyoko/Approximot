@@ -53,29 +53,39 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'LexiTom',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.bold,
+        toolbarHeight: 100,
+        title: Padding(
+          padding: const EdgeInsets.only(top: 50.0),
+          child: const Text(
+            'LexiTom',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Colors.white),
-            onPressed: () {
-              // Show rules dialog
-            },
-            tooltip: 'Règles du jeu',
+          Padding(
+            padding: const EdgeInsets.only(top: 50.0),
+            child: IconButton(
+              icon: const Icon(Icons.help_outline, color: Colors.white),
+              onPressed: () {
+                // Show rules dialog
+              },
+              tooltip: 'Règles du jeu',
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () {
-              // Show menu options
-            },
-            tooltip: 'Menu',
+          Padding(
+            padding: const EdgeInsets.only(top: 50.0),
+            child: IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white),
+              onPressed: () {
+                // Show menu options
+              },
+              tooltip: 'Menu',
+            ),
           ),
         ],
         centerTitle: true,
