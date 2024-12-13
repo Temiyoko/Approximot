@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import '../../main.dart';
 import 'wikitom_screen.dart';
 import 'settings_screen.dart';
@@ -50,6 +51,10 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       } else if (_lastWord == null && currentWord != null) {
         _lastWord = currentWord;
       }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showGameRules(context);
     });
   }
 
@@ -137,6 +142,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         setState(() {
           _errorMessage = 'Ce mot n\'existe pas dans le dictionnaire';
           _isLoading = false;
+          _controller.clear();
         });
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) {
@@ -152,6 +158,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       }
       if (mounted) {
         setState(() {
+          _controller.clear();
         });
       }
     } finally {
@@ -159,6 +166,79 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showGameRules(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: const Color(0xFF303030),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Comment jouer à LexiTom ?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  '• Un nouveau mot est disponible chaque jour\n\n'
+                  '• Proposez des mots pour deviner le mot mystère\n\n'
+                  '• Le pourcentage indique la proximité sémantique avec le mot à trouver\n\n'
+                  '• Plus le pourcentage est élevé, plus vous êtes proche du mot mystère\n\n'
+                  '• Trouvez le mot avec le moins d\'essais possible !',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    height: 1.3,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Align(
+                  alignment: Alignment.center,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF1E173),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text(
+                      'Compris !',
+                      style: TextStyle(
+                        color: Color(0xFF303030),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -186,12 +266,24 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         actions: [
           Padding(
             padding: const EdgeInsets.only(top: 50.0),
-            child: IconButton(
-              icon: const Icon(Icons.help_outline, color: Colors.white),
-              onPressed: () {
-                // Show rules dialog
-              },
-              tooltip: 'Règles du jeu',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(30),
+                splashColor: const Color(0xFFF1E173).withOpacity(0.3),
+                highlightColor: const Color(0xFFF1E173).withOpacity(0.1),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  child: const Icon(
+                    Icons.help_outline,
+                    color: Colors.white,
+                  ),
+                ),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _showGameRules(context);
+                },
+              ),
             ),
           ),
           Padding(
