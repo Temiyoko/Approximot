@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class CustomBottomBar extends StatelessWidget {
   final int currentIndex;
@@ -14,38 +13,49 @@ class CustomBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80,
+      height: 85,
       decoration: BoxDecoration(
-        color: const Color(0xFF303030),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF252525),
+            const Color(0xFF1A1A1A),
+            const Color(0xFF252525),
+          ],
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: const Color(0xFFF1E173).withOpacity(0.05),
+            blurRadius: 20,
+            spreadRadius: 1,
+            offset: const Offset(0, -5),
           ),
         ],
         border: Border(
           top: BorderSide(
-            color: Colors.white.withOpacity(0.1),
-            width: 0.5,
+            color: const Color(0xFFF1E173).withOpacity(0.15),
+            width: 1,
           ),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem(0, 'assets/images/lexitom.svg', 'Lexitom'),
-          _buildNavItem(1, 'assets/images/wiki.svg', 'WikiTom'),
-          _buildNavItem(2, 'assets/images/settings.svg', 'Paramètres'),
-        ],
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildNavItem(0, Icons.auto_stories_rounded, 'Lexitom'),
+            _buildNavItem(1, Icons.psychology_rounded, 'Wikitom'),
+            _buildNavItem(2, Icons.settings_rounded, 'Paramètres'),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildNavItem(int index, String svgPath, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label) {
     final bool isSelected = currentIndex == index;
-    final bool isLexitom = svgPath.contains('lexitom.svg');
-    const double iconSize = 24;
+    const double iconSize = 26;
     
     return Tooltip(
       preferBelow: false,
@@ -57,70 +67,75 @@ class CustomBottomBar extends StatelessWidget {
         color: Colors.white,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF303030),
+        color: const Color(0xFF252525),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 0.5,
-        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF1E173).withOpacity(0.1),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
       ),
-      child: InkWell(
+      child: GestureDetector(
         onTap: () => onTap(index),
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
-        child: Container(
-          width: 60,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedScale(
-                scale: isSelected ? 1.2 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                child: Container(
+        behavior: HitTestBehavior.translucent,
+        child: SizedBox(
+          width: 65,
+          height: 85,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
                   padding: const EdgeInsets.all(8),
-                  width: iconSize + 16,
-                  height: iconSize + 16,
                   decoration: isSelected ? BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: [
-                        Colors.white.withOpacity(0.15),
-                        Colors.white.withOpacity(0.05),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
-                      radius: 0.8,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF303030),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                      width: 1,
+                      color: const Color(0xFFF1E173).withOpacity(0.3),
+                      width: 1.5,
                     ),
                   ) : null,
-                  child: Center(
-                    child: SvgPicture.asset(
-                      svgPath,
-                      width: isLexitom ? iconSize * 1.2 : iconSize,
-                      height: isLexitom ? iconSize * 1.2 : iconSize,
+                  child: AnimatedScale(
+                    scale: isSelected ? 1.1 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutBack,
+                    child: Icon(
+                      icon,
+                      size: iconSize,
+                      color: isSelected 
+                          ? const Color(0xFFF1E173)
+                          : Colors.white.withOpacity(0.7),
                     ),
                   ),
                 ),
-              ),
-              AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: isSelected ? 1.0 : 0.0,
-                child: AnimatedContainer(
+                AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.only(top: 4),
-                  width: 4,
-                  height: 4,
+                  curve: Curves.easeInOut,
+                  margin: const EdgeInsets.only(top: 6),
+                  width: isSelected ? 25 : 0,
+                  height: 3,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(2),
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFF1E173),
+                        Color(0xFFFFD700),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF1E173).withOpacity(0.5),
+                        blurRadius: 6,
+                        spreadRadius: 1,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
