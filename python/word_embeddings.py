@@ -5,46 +5,74 @@ import random
 import sys
 from pathlib import Path
 import unicodedata
+import requests
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-def normalize_word(word):
-    """Remove accents and convert to lowercase"""
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', word.lower())
-        if unicodedata.category(c) != 'Mn'
-    )
+FILE_ID = "1ni-nwcVhNq7kJxX_Whv3PxknEqrIGMBK"
+MODEL_PATH = "model.bin"
+
+def download_model():
+    """Download the model from Google Drive if it doesn't exist"""
+    if not Path(MODEL_PATH).exists():
+        try:
+            session = requests.Session()
+            url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
+            response = session.get(url, stream=True)
+            
+            token = None
+            for key, value in response.cookies.items():
+                if key.startswith('download_warning'):
+                    token = value
+                    break
+
+            if token:
+                url = f"{url}&confirm={token}"
+            
+            response = session.get(url, stream=True)
+            response.raise_for_status()
+            
+            with open(MODEL_PATH, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            print("Model downloaded successfully")
+        except Exception as e:
+            print(f"Error downloading model: {str(e)}")
+            if Path(MODEL_PATH).exists():
+                Path(MODEL_PATH).unlink()
+            raise
 
 def get_model_path():
-    """Get the correct path to the model file regardless of how the script is run"""
-    possible_paths = [
-        Path('assets/models/model.bin'),
-        Path(__file__).parent.parent / 'assets' / 'models' / 'model.bin',
-        Path('/data/user/0/com.approximot.projet/app_flutter/models/model.bin'),
-        Path.home() / 'path/to/your/project/assets/models/model.bin'
-    ]
+    """Get the path to the model file"""
+    return MODEL_PATH
 
-    for path in possible_paths:
-        if path.is_file():
-            return str(path)
-    
-    raise FileNotFoundError(f"Model file not found. Searched paths: {[str(p) for p in possible_paths]}")
+download_model()
 
 try:
     model_path = get_model_path()
-    model = gensim.models.KeyedVectors.load_word2vec_format(model_path, binary=True, unicode_errors='ignore')
+    
+    model = gensim.models.KeyedVectors.load_word2vec_format(
+        model_path, 
+        binary=True, 
+        unicode_errors='ignore'
+    )
+    
 except Exception as e:
-    print(f"Failed to load model: {str(e)}")
+    import traceback
+    traceback.print_exc()
     sys.exit(1)
 
 @app.route('/embed', methods=['POST'])
 def get_embedding():
     try:
         data = request.get_json()
-        word = normalize_word(data.get('text', ''))
+        received_word = data.get('text', '')
         
-        embedding = model[word].tolist()
+        embedding = model[received_word].tolist()
         return jsonify({
             'success': True,
             'embedding': embedding
@@ -64,7 +92,7 @@ def get_embedding():
 def get_similar_words():
     try:
         data = request.get_json()
-        word = normalize_word(data.get('text', ''))
+        word = data.get('text', '')
         topn = data.get('topn', 100)
         
         similar_words = model.most_similar(word, topn=topn)
@@ -103,24 +131,31 @@ def get_random_word():
 def get_similarity():
     try:
         data = request.get_json()
-        word1 = normalize_word(data.get('word1', ''))
-        word2 = normalize_word(data.get('word2', ''))
+        word1 = data.get('word1', '')
+        word2 = data.get('word2', '')
         
-        similarity = float(model.similarity(word1, word2))
+        similarity = model.similarity(word1, word2)
         return jsonify({
             'success': True,
-            'similarity': similarity
+            'similarity': float(similarity)
         })
-    except KeyError:
+    except KeyError as e:
         return jsonify({
             'success': False,
-            'error': f"Word '{data.get('word1', '')}' not found in vocabulary"
+            'error': f"Word not found in vocabulary"
         }), 404
     except Exception as e:
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        'status': 'healthy',
+        'model_loaded': model is not None
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
