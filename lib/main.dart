@@ -34,22 +34,15 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  await WordEmbeddingService.instance.loadModel();
-
-  if (WordEmbeddingService.instance.isLoaded) {
-    try {
-      currentWord = await WordEmbeddingService.instance.getRandomWord();
-      if (kDebugMode) {
-        print('Initial word to find: $currentWord');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error getting initial word: $e');
-      }
-    }
-  } else {
+  try {
+    currentWord = await WordEmbeddingService.instance.getRandomWord();
     if (kDebugMode) {
-      print('Model failed to load');
+      print('Initial word to find: $currentWord');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error getting initial word: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
   }
 

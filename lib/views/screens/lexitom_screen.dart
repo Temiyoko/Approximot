@@ -77,7 +77,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     return word
         .toLowerCase()
         .trim()
-        .replaceAll(RegExp(r'[^a-z\-]'), '');
+        .replaceAll(RegExp(r'[^a-zàâäéèêëîïôöùûüÿçæœ\-]'), '');
   }
 
   Future<void> _handleGuess() async {

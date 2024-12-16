@@ -1,13 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class WordEmbeddingService {
   static WordEmbeddingService? _instance;
-  late ByteData _modelData;
-  bool _isLoaded = false;
-  final String _baseUrl = 'http://10.0.2.2:5000'; // For Android emulator
+  static const String baseUrl = 'https://approximot-1967d63b9545.herokuapp.com/';
 
   static WordEmbeddingService get instance {
     _instance ??= WordEmbeddingService._();
@@ -16,27 +13,14 @@ class WordEmbeddingService {
 
   WordEmbeddingService._();
 
-  bool get isLoaded => _isLoaded;
-
-  Future<void> loadModel() async {
-    try {
-      _modelData = await rootBundle.load('assets/models/model.bin');
-      _isLoaded = true;
-      if (kDebugMode) {
-        print('Word embedding model loaded successfully: ${_modelData.lengthInBytes} bytes');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error loading word embedding model: $e');
-      }
-      _isLoaded = false;
-    }
-  }
-
   Future<List<double>?> getEmbedding(String text) async {
+    if (text.isEmpty) {
+      return null;
+    }
+
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/embed'),
+        Uri.parse('$baseUrl/embed'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'text': text}),
       );
@@ -57,9 +41,10 @@ class WordEmbeddingService {
   }
 
   Future<List<Map<String, dynamic>>?> getSimilarWords(String word, {int topn = 100}) async {
+
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/similar'),
+        Uri.parse('$baseUrl/similar'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'text': word, 'topn': topn}),
       );
@@ -81,8 +66,9 @@ class WordEmbeddingService {
 
   Future<String?> getRandomWord() async {
     try {
+
       final response = await http.get(
-        Uri.parse('$_baseUrl/random'),
+        Uri.parse('$baseUrl/random'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -90,27 +76,30 @@ class WordEmbeddingService {
         final data = jsonDecode(response.body);
         if (data['success']) {
           return data['word'];
+        } else {
+          throw Exception('Server returned success: false - ${data['error']}');
         }
+      } else {
+        throw Exception('Server returned status code: ${response.statusCode}');
       }
-      return null;
     } catch (e) {
       if (kDebugMode) {
         print('Error getting random word: $e');
       }
-      return null;
+      rethrow;
     }
   }
 
   Future<double?> getSimilarity(String word1, String word2) async {
+
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/similarity'),
+        Uri.parse('$baseUrl/similarity'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'word1': word1, 'word2': word2}),
       );
 
       if (response.statusCode == 404) {
-        // Word not found in vocabulary
         throw WordNotFoundException(word1);
       }
 
