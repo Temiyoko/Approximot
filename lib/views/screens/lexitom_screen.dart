@@ -178,63 +178,54 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Comment jouer à LexiTom ?',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  '• Un nouveau mot est disponible chaque jour\n\n'
-                  '• Proposez des mots pour deviner le mot mystère\n\n'
-                  '• Le pourcentage indique la proximité sémantique avec le mot à trouver\n\n'
-                  '• Plus le pourcentage est élevé, plus vous êtes proche du mot mystère\n\n'
-                  '• Trouvez le mot avec le moins d\'essais possible !',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                    height: 1.3,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Align(
-                  alignment: Alignment.center,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF1E173),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Text(
-                      'Compris !',
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Comment jouer à LexiTom ?',
                       style: TextStyle(
-                        color: Color(0xFF303030),
-                        fontSize: 16,
+                        color: Colors.white,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'Poppins',
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      '• Un nouveau mot est disponible chaque jour\n\n'
+                      '• Proposez des mots pour deviner le mot mystère\n\n'
+                      '• Le pourcentage indique la proximité sémantique avec le mot à trouver\n\n'
+                      '• Plus le pourcentage est élevé, plus vous êtes proche du mot mystère\n\n'
+                      '• Trouvez le mot avec le moins d\'essais possible !',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        height: 1.3,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.close,
+                    color: Colors.white.withOpacity(0.5),
+                    size: 20,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  splashRadius: 20,
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -556,52 +547,61 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         ),
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _guesses.length,
-                      itemBuilder: (context, index) {
-                        final sortedGuesses = List<GuessResult>.from(_guesses)
-                          ..sort((a, b) => b.similarity.compareTo(a.similarity));
-                        final guess = sortedGuesses[index];
+                  : Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: pastelYellow.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: _guesses.length,
+                        itemBuilder: (context, index) {
+                          final sortedGuesses = List<GuessResult>.from(_guesses)
+                            ..sort((a, b) => b.similarity.compareTo(a.similarity));
+                          final guess = sortedGuesses[index];
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: guess.isCorrect
-                                  ? Colors.green
-                                  : pastelYellow.withOpacity(0.3),
+                          return Container(
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: pastelYellow.withOpacity(0.1),
+                                  width: 1,
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                guess.word,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontFamily: 'Poppins',
-                                ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    guess.word,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(guess.similarity * 100).toStringAsFixed(1)}%',
+                                    style: TextStyle(
+                                      color: guess.isCorrect ? Colors.green : Colors.white,
+                                      fontSize: 16,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                '${(guess.similarity * 100).toStringAsFixed(1)}%',
-                                style: TextStyle(
-                                  color: guess.isCorrect
-                                      ? Colors.green
-                                      : Colors.white,
-                                  fontSize: 16,
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                            ),
+                          );
+                        },
+                      ),
                     ),
             ),
           ],
