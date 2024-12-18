@@ -604,6 +604,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                       ),
                     ),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
