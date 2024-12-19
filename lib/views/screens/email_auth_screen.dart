@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/auth_service.dart';
 import 'lexitom_screen.dart';
 
 class EmailAuthScreen extends StatefulWidget {
@@ -29,9 +30,9 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
 
     try {
       try {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text,
-          password: DateTime.now().millisecondsSinceEpoch.toString(),
+        await AuthService.createUserWithEmail(
+          _emailController.text,
+          DateTime.now().millisecondsSinceEpoch.toString(),
         );
         _isNewUser = true;
         await FirebaseAuth.instance.sendPasswordResetEmail(
@@ -85,9 +86,9 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
+      await AuthService.signInWithEmail(
+        _emailController.text,
+        _passwordController.text,
       );
 
       if (mounted) {

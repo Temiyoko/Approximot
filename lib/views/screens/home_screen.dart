@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/google_auth_service.dart';
+import '../../services/auth_service.dart';
 import 'email_auth_screen.dart';
 import '../../utils/page_transitions.dart';
 import 'main_screen_container.dart';
@@ -82,9 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class LoginScreen extends StatelessWidget {
-  final GoogleAuthService _googleAuthService = GoogleAuthService();
-
-  LoginScreen({super.key});
+  const LoginScreen({super.key});
 
   void _handleGuestLogin(BuildContext context) {
     Navigator.pushReplacement(
@@ -198,28 +196,28 @@ class LoginScreen extends StatelessWidget {
                         child: ElevatedButton.icon(
                           onPressed: () async {
                             try {
-                              final userCredential = await _googleAuthService.signInWithGoogle();
-                              if (userCredential != null) {
-                                if (context.mounted) {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    PageTransitions.slideTransition(const MainScreenContainer(initialIndex: 0)),
-                                  );
-                                }
+                              final userCredential = await AuthService.signInWithGoogle();
+                              if (userCredential != null && context.mounted) {
+                                Navigator.pushReplacement(
+                                  context,
+                                  PageTransitions.slideTransition(
+                                    const MainScreenContainer(initialIndex: 0),
+                                  ),
+                                );
                               }
                             } catch (e) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Erreur de connexion veuillez réessayer"),
-                                      backgroundColor: Colors.red,
-                                      behavior: SnackBarBehavior.floating,
-                                      margin: EdgeInsets.only(
-                                        bottom: MediaQuery.of(context).size.height - 100,
-                                        right: 20,
-                                        left: 20,
-                                      ),
+                                  SnackBar(
+                                    content: const Text("Erreur de connexion veuillez réessayer"),
+                                    backgroundColor: Colors.red,
+                                    behavior: SnackBarBehavior.floating,
+                                    margin: EdgeInsets.only(
+                                      bottom: MediaQuery.of(context).size.height - 100,
+                                      right: 20,
+                                      left: 20,
                                     ),
+                                  ),
                                 );
                               }
                             }
