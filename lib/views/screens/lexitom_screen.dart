@@ -544,12 +544,13 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         title: Padding(
           padding: const EdgeInsets.only(top: 50.0),
           child: const Text(
-            'LexiTom',
+            'LEXITOM',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontFamily: 'Poppins',
               fontWeight: FontWeight.bold,
+              letterSpacing: 4,
             ),
           ),
         ),
