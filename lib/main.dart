@@ -35,9 +35,12 @@ void main() async {
   );
 
   try {
-    currentWord = await WordEmbeddingService.instance.getRandomWord();
-    if (kDebugMode) {
-      print('Initial word to find: $currentWord');
+    final wordData = await WordEmbeddingService.instance.getCurrentWord();
+    if (wordData != null) {
+      currentWord = wordData['word'];
+      if (kDebugMode) {
+        print('Initial word to find: $currentWord');
+      }
     }
   } catch (e) {
     if (kDebugMode) {

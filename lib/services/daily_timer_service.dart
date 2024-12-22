@@ -14,4 +14,11 @@ class DailyTimerService {
     
     return '$hours:$minutes:$seconds';
   }
+
+  static String formatMilliseconds(int milliseconds) {
+    if (milliseconds <= 0) return '00:00:00';
+    
+    final duration = Duration(milliseconds: milliseconds);
+    return formatDuration(duration);
+  }
 }

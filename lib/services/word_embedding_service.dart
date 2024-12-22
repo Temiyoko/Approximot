@@ -120,6 +120,32 @@ class WordEmbeddingService {
       return null;
     }
   }
+
+  Future<Map<String, dynamic>?> getCurrentWord() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/current-word'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success']) {
+          return {
+            'word': data['word'],
+            'timeRemaining': data['time_remaining'],
+            'timestamp': data['timestamp'],
+          };
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting current word: $e');
+      }
+      return null;
+    }
+  }
 }
 
 class WordNotFoundException implements Exception {

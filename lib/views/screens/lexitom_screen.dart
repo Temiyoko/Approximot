@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import '../../main.dart';
 import '../../models/game_session.dart';
 import '../../services/auth_service.dart';
 import 'wikitom_screen.dart';
@@ -24,19 +23,19 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMixin {
   final TextEditingController _controller = TextEditingController();
   Timer? _timer;
-  String _timeUntilMidnight = '';
+  String _timeLeft = '';
   final Color pastelYellow = const Color(0xFFF1E173);
   final List<GuessResult> _guesses = [];
-  final List<String> _history = [];
   bool _isLoading = false;
   String? _errorMessage;
-  String? _lastWord;
   GuessResult? _lastGuessResult;
   String? _gameCode;
   GameSession? _gameSession;
   StreamSubscription? _gameSubscription;
   final TextEditingController _codeController = TextEditingController();
   String? _joinError;
+  String? currentWord;
+  DateTime? _wordExpiryTime;
 
   @override
   bool get wantKeepAlive => true;
@@ -44,23 +43,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
-    _updateTimer();
+    _updateCurrentWord();
+    
+    // Single timer that handles both display updates and word changes
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      _updateTimer();
-
-      if (_lastWord != null && currentWord != null &&
-          currentWord != _lastWord) {
-        setState(() {
-          if (_lastGuessResult != null && _lastGuessResult!.isCorrect) {
-            _guesses.insert(0, _lastGuessResult!);
-            _history.insert(0, _lastWord!);
-          }
-          _lastGuessResult = null;
-          _lastWord = currentWord;
-        });
-      } else if (_lastWord == null && currentWord != null) {
-        _lastWord = currentWord;
-      }
+      _updateTimeLeft();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -77,12 +64,24 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     super.dispose();
   }
 
-  void _updateTimer() {
-    if (!mounted) return;
-    final timeLeft = DailyTimerService.getTimeUntilMidnight();
-    setState(() {
-      _timeUntilMidnight = DailyTimerService.formatDuration(timeLeft);
-    });
+  void _updateTimeLeft() {
+    if (!mounted || _wordExpiryTime == null) return;
+    
+    final now = DateTime.now();
+    final difference = _wordExpiryTime!.difference(now);
+    
+    if (difference.isNegative) {
+      // Word has expired, fetch new word
+      _updateCurrentWord();
+      setState(() {
+        _timeLeft = '00:00:00';
+      });
+    } else {
+      // Update the display
+      setState(() {
+        _timeLeft = DailyTimerService.formatDuration(difference);
+      });
+    }
   }
 
   String _cleanWord(String word) {
@@ -124,10 +123,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
           _lastGuessResult = guessResult;
           _controller.clear();
-
-          if (guessResult.isCorrect) {
-            _lastWord = guessResult.word;
-          }
         });
 
         if (guess == currentWord && mounted) {
@@ -531,6 +526,30 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     }
   }
 
+  Future<void> _updateCurrentWord() async {
+    try {
+      final wordData = await WordEmbeddingService.instance.getCurrentWord();
+      if (wordData != null && mounted) {
+        setState(() {
+          final newWord = wordData['word'];
+          if (currentWord != newWord) {
+            _guesses.clear();
+            _lastGuessResult = null;
+          }
+          
+          currentWord = newWord;
+          // Calculate expiry time from server data
+          final timeRemaining = Duration(milliseconds: wordData['timeRemaining']);
+          _wordExpiryTime = DateTime.now().add(timeRemaining);
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error updating current word: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -680,7 +699,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         const SizedBox(width: 8),
                         Text(
                           currentWord != null
-                              ? 'Prochain mot dans $_timeUntilMidnight'
+                              ? 'Prochain mot dans $_timeLeft'
                               : 'Chargement...',
                           style: const TextStyle(
                             color: Colors.white,
