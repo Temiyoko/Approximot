@@ -11,12 +11,20 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
+import json
 
 app = Flask(__name__)
 CORS(app)
 
 # Initialize Firebase Admin
-cred = credentials.Certificate('path/to/your/firebase-credentials.json')
+if 'FIREBASE_CREDENTIALS' in os.environ:
+    # Get credentials from environment variable
+    cred_dict = json.loads(os.environ.get('FIREBASE_CREDENTIALS'))
+    cred = credentials.Certificate(cred_dict)
+else:
+    # Fallback for local development
+    cred = credentials.Certificate('firebase-credentials.json')
+
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
@@ -30,6 +38,7 @@ def update_word():
     try:
         # Get a random word from the model
         word = random.choice(list(model.key_to_index.keys()))
+        current_time = time.strftime('%Y-%m-%d %H:%M:%S')
         
         # Update Firestore
         db.collection(COLLECTION).document(DOCUMENT).set({
@@ -37,7 +46,7 @@ def update_word():
             'timestamp': int(time.time() * 1000)  # Current time in milliseconds
         })
         
-        print(f"Word updated successfully to: {word}")
+        print(f"[{current_time}] Word updated successfully to: {word}")
     except Exception as e:
         print(f"Error updating word: {str(e)}")
 
@@ -215,6 +224,33 @@ def health_check():
         'status': 'healthy',
         'model_loaded': model is not None
     })
+
+@app.route('/current-word', methods=['GET'])
+def get_current_word():
+    try:
+        doc = db.collection(COLLECTION).document(DOCUMENT).get()
+        if not doc.exists:
+            return jsonify({
+                'success': False,
+                'error': 'No word found'
+            }), 404
+            
+        data = doc.to_dict()
+        timestamp = data.get('timestamp', 0)
+        current_time = int(time.time() * 1000)
+        
+        return jsonify({
+            'success': True,
+            'word': data.get('word'),
+            'timestamp': timestamp,
+            'current_time': current_time,
+            'time_remaining': (WORD_DURATION * 1000) - (current_time - timestamp)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
