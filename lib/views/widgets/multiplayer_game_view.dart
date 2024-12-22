@@ -91,11 +91,11 @@ class MultiplayerGameView extends StatelessWidget {
                       ),
                     ],
                   ),
-                )).toList(),
+                )),
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
