@@ -14,22 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "127797921459-6bjt7jgvplf3d1o2sae0uqm83f2s05dh.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.approximot.projet",
-            "certificate_hash": "d8d801cea28f0ffa350b2946b8a495eb0390ac9e"
-          }
-        },
-        {
-          "client_id": "127797921459-71s0qb8jiml7m1rfrdel3e8t6lm4ue18.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.approximot.projet",
-            "certificate_hash": "5ad73e1625e421505e75ac85f81633882ceb2410"
-          }
-        },
-        {
           "client_id": "127797921459-r1420nmgm6eq3kgo4ijr8ribccshskia.apps.googleusercontent.com",
           "client_type": 3
         }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:math';
 import '../models/game_session.dart';
 import '../models/guess_result.dart';
@@ -70,13 +71,53 @@ class MultiplayerService {
     final user = AuthService.currentUser;
     if (user == null) return;
 
-    final batch = _db.batch();
-    batch.update(_db.collection('game_sessions').doc(code), {
-      'playerIds': FieldValue.arrayRemove([user.uid])
-    });
-    batch.update(_db.collection('users').doc(user.uid), {
-      'activeGames': FieldValue.arrayRemove([code])
-    });
-    await batch.commit();
+    try {
+      // First check if user document exists
+      final userDoc = await _db.collection('users').doc(user.uid).get();
+      final gameDoc = await _db.collection('game_sessions').doc(code).get();
+      
+      if (!gameDoc.exists) {
+        // Game doesn't exist anymore, nothing to do
+        return;
+      }
+
+      final batch = _db.batch();
+      
+      // Get current game data
+      final gameData = GameSession.fromJson(gameDoc.data()!);
+      final remainingPlayers = List<String>.from(gameData.playerIds)
+        ..remove(user.uid);
+
+      if (remainingPlayers.isEmpty) {
+        // If no players left, delete the game session
+        batch.delete(_db.collection('game_sessions').doc(code));
+      } else {
+        // Otherwise just remove the player
+        batch.update(_db.collection('game_sessions').doc(code), {
+          'playerIds': FieldValue.arrayRemove([user.uid]),
+          'playerGuesses.${user.uid}': FieldValue.delete(),
+        });
+      }
+
+      // Only update user document if it exists
+      if (userDoc.exists) {
+        batch.update(_db.collection('users').doc(user.uid), {
+          'activeGames': FieldValue.arrayRemove([code])
+        });
+      } else {
+        // Create user document if it doesn't exist
+        await AuthService.createUserDocument(user);
+        batch.update(_db.collection('users').doc(user.uid), {
+          'activeGames': FieldValue.arrayRemove([code])
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error leaving game: $e');
+      }
+      rethrow;
+    }
   }
 } 

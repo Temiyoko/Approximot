@@ -51,12 +51,20 @@ class AuthService {
 
   // Email Sign In
   static Future<UserCredential> signInWithEmail(String email, String password) async {
-    final userCredential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    await _updateUserData(userCredential.user!);
-    return userCredential;
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      if (credential.user != null) {
+        await createUserDocument(credential.user!);
+      }
+      
+      return credential;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   // Email Sign Up
@@ -80,6 +88,21 @@ class AuthService {
     if (currentUser != null) {
       await _db.collection('users').doc(currentUser!.uid).update({
         'lastSeen': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  static Future<void> createUserDocument(User user) async {
+    final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    
+    // Only create if it doesn't exist
+    final docSnapshot = await userDoc.get();
+    if (!docSnapshot.exists) {
+      await userDoc.set({
+        'uid': user.uid,
+        'email': user.email,
+        'createdAt': FieldValue.serverTimestamp(),
+        'activeGames': [],
       });
     }
   }
