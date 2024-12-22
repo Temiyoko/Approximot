@@ -7,9 +7,68 @@ from pathlib import Path
 import unicodedata
 import requests
 import os
+import firebase_admin
+from firebase_admin import credentials, firestore
+from apscheduler.schedulers.background import BackgroundScheduler
+import time
 
 app = Flask(__name__)
 CORS(app)
+
+# Initialize Firebase Admin
+cred = credentials.Certificate('path/to/your/firebase-credentials.json')
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# Constants
+WORD_DURATION = 60  # seconds
+COLLECTION = 'game'
+DOCUMENT = 'currentWord'
+
+def update_word():
+    """Update the word in Firestore"""
+    try:
+        # Get a random word from the model
+        word = random.choice(list(model.key_to_index.keys()))
+        
+        # Update Firestore
+        db.collection(COLLECTION).document(DOCUMENT).set({
+            'word': word,
+            'timestamp': int(time.time() * 1000)  # Current time in milliseconds
+        })
+        
+        print(f"Word updated successfully to: {word}")
+    except Exception as e:
+        print(f"Error updating word: {str(e)}")
+
+# Initialize the scheduler
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    update_word, 
+    'interval', 
+    seconds=WORD_DURATION,
+    id='update_word_job'
+)
+
+# Start the scheduler when the app starts
+@app.before_first_request
+def init_scheduler():
+    scheduler.start()
+
+# Add a route to manually trigger word update (for testing)
+@app.route('/update-word', methods=['POST'])
+def trigger_word_update():
+    try:
+        update_word()
+        return jsonify({
+            'success': True,
+            'message': 'Word updated successfully'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 FILE_ID = "1ni-nwcVhNq7kJxX_Whv3PxknEqrIGMBK"
 MODEL_PATH = "model.bin"
