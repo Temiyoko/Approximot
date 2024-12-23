@@ -115,53 +115,58 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         );
 
         setState(() {
-          if (_lastGuessResult != null) {
-            final existingIndex = _guesses.indexWhere((g) =>
-            g.word == _lastGuessResult!.word);
-            if (existingIndex == -1) {
-              _guesses.insert(0, _lastGuessResult!);
-            }
-          }
-
           _lastGuessResult = guessResult;
         });
 
-        if (guess == currentWord && mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (BuildContext dialogContext) => AlertDialog(
-              title: const Text('Félicitations !'),
-              content: Text('Vous avez trouvé le mot : $currentWord'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                    FocusScope.of(context).requestFocus(_focusNode);
-                  },
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-          );
-        }
-      }
+        if (guess == currentWord) {
+          await MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
+          final dialogContext = context;
 
-      if (_gameCode != null && _lastGuessResult != null) {
-        await MultiplayerService.addGuess(
-          _gameCode!,
-          AuthService.currentUser?.uid ?? '',
-          _lastGuessResult!,
-        );
+          if (mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                showDialog(
+                  context: dialogContext,
+                  barrierDismissible: false,
+                  builder: (BuildContext dialogContext) {
+                    return AlertDialog(
+                      title: const Text('Félicitations !'),
+                      content: Text('Vous avez trouvé le mot : $currentWord'),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            if (mounted) {
+                              FocusScope.of(dialogContext).requestFocus(_focusNode);
+                            }
+                          },
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }
+            });
+          }
+        } else {
+          if (_gameCode != null && _lastGuessResult != null) {
+            await MultiplayerService.addGuess(
+              _gameCode!,
+              AuthService.currentUser?.uid ?? '',
+              _lastGuessResult!,
+            );
+          }
+        }
       }
     } on WordNotFoundException {
       if (!mounted) return;
-      
+
       setState(() {
         _errorMessage = 'Ce mot n\'existe pas dans le dictionnaire';
         _isLoading = false;
       });
-      
+
       Future.delayed(const Duration(seconds: 3), () {
         if (mounted) {
           setState(() {
@@ -529,6 +534,36 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           .listen((session) {
         if (mounted && session != null) {
           setState(() => _gameSession = session);
+          
+          if (session.wordFound &&
+              session.winnerId != null && 
+              session.winnerId != AuthService.currentUser?.uid) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext dialogContext) {
+                    return AlertDialog(
+                      title: const Text('Mot trouvé !'),
+                      content: Text('Un joueur a trouvé le mot secret !'),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            if (mounted) {
+                              FocusScope.of(context).requestFocus(_focusNode);
+                            }
+                          },
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }
+            });
+          }
           
           final otherPlayersGuesses = session.playerGuesses.entries
               .where((entry) => entry.key != AuthService.currentUser?.uid)

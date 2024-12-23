@@ -1,4 +1,3 @@
-
 import 'guess_result.dart';
 
 class GameSession {
@@ -8,6 +7,9 @@ class GameSession {
   final Map<String, List<GuessResult>> playerGuesses;
   final DateTime createdAt;
   final bool isActive;
+  final bool wordFound;
+  final String? winnerId;
+  final String? currentUserId;
 
   GameSession({
     required this.code,
@@ -16,6 +18,9 @@ class GameSession {
     required this.playerGuesses,
     required this.createdAt,
     required this.isActive,
+    this.wordFound = false,
+    this.winnerId,
+    this.currentUserId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -27,6 +32,9 @@ class GameSession {
     ),
     'createdAt': createdAt.toIso8601String(),
     'isActive': isActive,
+    'wordFound': wordFound,
+    'winnerId': winnerId,
+    'currentUserId': currentUserId,
   };
 
   factory GameSession.fromJson(Map<String, dynamic> json) => GameSession(
@@ -41,5 +49,8 @@ class GameSession {
     ),
     createdAt: DateTime.parse(json['createdAt']),
     isActive: json['isActive'],
+    wordFound: json['wordFound'] ?? false,
+    winnerId: json['winnerId'],
+    currentUserId: json['currentUserId'],
   );
 }

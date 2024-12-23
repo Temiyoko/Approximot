@@ -26,6 +26,7 @@ class MultiplayerService {
       playerGuesses: {user.uid: []},
       createdAt: DateTime.now(),
       isActive: true,
+      currentUserId: user.uid,
     );
 
     final batch = _db.batch();
@@ -57,7 +58,9 @@ class MultiplayerService {
     return _db.collection('game_sessions')
         .doc(code)
         .snapshots()
-        .map((doc) => doc.exists ? GameSession.fromJson(doc.data()!) : null);
+        .map((doc) {
+          return doc.exists ? GameSession.fromJson(doc.data()!) : null;
+        });
   }
 
   static Future<void> addGuess(String code, String playerId, GuessResult guess) async {
@@ -72,40 +75,33 @@ class MultiplayerService {
     if (user == null) return;
 
     try {
-      // First check if user document exists
       final userDoc = await _db.collection('users').doc(user.uid).get();
       final gameDoc = await _db.collection('game_sessions').doc(code).get();
       
       if (!gameDoc.exists) {
-        // Game doesn't exist anymore, nothing to do
         return;
       }
 
       final batch = _db.batch();
       
-      // Get current game data
       final gameData = GameSession.fromJson(gameDoc.data()!);
       final remainingPlayers = List<String>.from(gameData.playerIds)
         ..remove(user.uid);
 
       if (remainingPlayers.isEmpty) {
-        // If no players left, delete the game session
         batch.delete(_db.collection('game_sessions').doc(code));
       } else {
-        // Otherwise just remove the player
         batch.update(_db.collection('game_sessions').doc(code), {
           'playerIds': FieldValue.arrayRemove([user.uid]),
           'playerGuesses.${user.uid}': FieldValue.delete(),
         });
       }
 
-      // Only update user document if it exists
       if (userDoc.exists) {
         batch.update(_db.collection('users').doc(user.uid), {
           'activeGames': FieldValue.arrayRemove([code])
         });
       } else {
-        // Create user document if it doesn't exist
         await AuthService.createUserDocument(user);
         batch.update(_db.collection('users').doc(user.uid), {
           'activeGames': FieldValue.arrayRemove([code])
@@ -119,5 +115,13 @@ class MultiplayerService {
       }
       rethrow;
     }
+  }
+
+  static Future<void> notifyWordFound(String code, String playerId) async {
+    await _db.collection('game_sessions').doc(code).update({
+      'wordFound': true,
+      'winnerId': playerId,
+      'lastUpdate': FieldValue.serverTimestamp(),
+    });
   }
 } 
