@@ -22,6 +22,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMixin {
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   Timer? _timer;
   String _timeLeft = '';
   final Color pastelYellow = const Color(0xFFF1E173);
@@ -45,7 +46,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     super.initState();
     _updateCurrentWord();
     
-    // Single timer that handles both display updates and word changes
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateTimeLeft();
     });
@@ -61,6 +61,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     _controller.dispose();
     _gameSubscription?.cancel();
     _codeController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -71,13 +72,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     final difference = _wordExpiryTime!.difference(now);
     
     if (difference.isNegative) {
-      // Word has expired, fetch new word
       _updateCurrentWord();
       setState(() {
         _timeLeft = '00:00:00';
       });
     } else {
-      // Update the display
       setState(() {
         _timeLeft = DailyTimerService.formatDuration(difference);
       });
@@ -88,12 +87,15 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     return word
         .toLowerCase()
         .trim()
-        .replaceAll(RegExp(r'[^a-zàâäéèêëîïôöùûüÿçæœ\-]'), '');
+        .replaceAll(RegExp(r'[^a-zà����äéèêëîïôöùûüÿçæœ\-]'), '');
   }
 
   Future<void> _handleGuess() async {
     final guess = _cleanWord(_controller.text);
     if (guess.isEmpty) return;
+
+    _controller.clear();
+    FocusScope.of(context).requestFocus(_focusNode);
 
     setState(() {
       _isLoading = true;
@@ -122,7 +124,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           }
 
           _lastGuessResult = guessResult;
-          _controller.clear();
         });
 
         if (guess == currentWord && mounted) {
@@ -134,7 +135,10 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               content: Text('Vous avez trouvé le mot : $currentWord'),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    FocusScope.of(context).requestFocus(_focusNode);
+                  },
                   child: const Text('OK'),
                 ),
               ],
@@ -156,7 +160,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       setState(() {
         _errorMessage = 'Ce mot n\'existe pas dans le dictionnaire';
         _isLoading = false;
-        _controller.clear();
       });
       
       Future.delayed(const Duration(seconds: 3), () {
@@ -172,7 +175,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       }
       if (mounted) {
         setState(() {
-          _controller.clear();
         });
       }
     } finally {
@@ -528,20 +530,17 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         if (mounted && session != null) {
           setState(() => _gameSession = session);
           
-          // Update local guesses with other players' guesses
           final otherPlayersGuesses = session.playerGuesses.entries
               .where((entry) => entry.key != AuthService.currentUser?.uid)
               .expand((entry) => entry.value)
               .toList();
               
-          // Merge with local guesses if needed
           for (final guess in otherPlayersGuesses) {
             if (!_guesses.any((g) => g.word == guess.word)) {
               _guesses.insert(0, guess);
             }
           }
         } else if (mounted && session == null) {
-          // Handle case where session becomes null (game ended/deleted)
           setState(() {
             _gameSession = null;
             _gameCode = null;
@@ -563,7 +562,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           }
           
           currentWord = newWord;
-          // Calculate expiry time from server data
           final timeRemaining = Duration(milliseconds: wordData['timeRemaining']);
           _wordExpiryTime = DateTime.now().add(timeRemaining);
         });
@@ -757,6 +755,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                       ),
                       child: TextField(
                         controller: _controller,
+                        focusNode: _focusNode,
                         style: const TextStyle(color: Colors.white),
                         cursorColor: pastelYellow,
                         keyboardType: TextInputType.text,
