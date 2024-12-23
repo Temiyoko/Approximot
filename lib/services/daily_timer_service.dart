@@ -1,8 +1,7 @@
 class DailyTimerService {
   static Duration getTimeUntilMidnight() {
     final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day + 1);
-    return tomorrow.difference(now);
+    return DateTime(now.year, now.month, now.day + 1).difference(now);
   }
 
   static String formatDuration(Duration duration) {
