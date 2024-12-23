@@ -53,11 +53,11 @@ class MultiplayerService {
     return GameSession.fromJson((await doc.reference.get()).data()!);
   }
 
-  static Stream<GameSession> watchGameSession(String code) {
+  static Stream<GameSession?> watchGameSession(String code) {
     return _db.collection('game_sessions')
         .doc(code)
         .snapshots()
-        .map((doc) => GameSession.fromJson(doc.data()!));
+        .map((doc) => doc.exists ? GameSession.fromJson(doc.data()!) : null);
   }
 
   static Future<void> addGuess(String code, String playerId, GuessResult guess) async {

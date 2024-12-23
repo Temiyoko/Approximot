@@ -251,21 +251,116 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     
     showDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => Dialog(
-          backgroundColor: const Color(0xFF303030),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: _gameSession != null 
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (dialogContext) => StreamBuilder<GameSession?>(
+        stream: _gameCode != null 
+            ? MultiplayerService.watchGameSession(_gameCode!)
+            : const Stream.empty(),
+        initialData: _gameSession,
+        builder: (context, snapshot) {
+          if (_gameCode != null && !snapshot.hasData) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              setState(() {
+                _gameSession = null;
+                _gameCode = null;
+              });
+              Navigator.of(dialogContext).pop();
+            });
+            return const SizedBox.shrink();
+          }
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) => Dialog(
+              backgroundColor: const Color(0xFF303030),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: snapshot.data != null 
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Partie en cours',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                              SelectableText(
+                                'Code: ${snapshot.data!.code}',
+                                style: const TextStyle(
+                                  color: Color(0xFFF1E173),
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          ...snapshot.data!.playerIds.map((playerId) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.person,
+                                  color: playerId == AuthService.currentUser?.uid
+                                      ? const Color(0xFFF1E173)
+                                      : Colors.white70,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  playerId == AuthService.currentUser?.uid ? 'Vous' : 'Joueur ${playerId.substring(0, 4)}',
+                                  style: TextStyle(
+                                    color: playerId == AuthService.currentUser?.uid
+                                        ? const Color(0xFFF1E173)
+                                        : Colors.white,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (_gameCode != null) {
+                                await MultiplayerService.leaveGame(_gameCode!);
+                                if (mounted) {
+                                  setState(() {
+                                    _gameSession = null;
+                                    _gameCode = null;
+                                  });
+                                  if (dialogContext.mounted) {
+                                    Navigator.of(dialogContext).pop();
+                                  }
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[400],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              'Quitter la partie',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
-                            'Partie en cours',
+                            'Mode Multijoueur',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 22,
@@ -273,166 +368,90 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                               fontFamily: 'Poppins',
                             ),
                           ),
-                          SelectableText(
-                            'Code: ${_gameSession!.code}',
-                            style: const TextStyle(
-                              color: Color(0xFFF1E173),
-                              fontFamily: 'Poppins',
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: () => _createMultiplayerGame(dialogContext),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF1E173),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              'Créer une partie',
+                              style: TextStyle(
+                                color: Color(0xFF303030),
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextSelectionTheme(
+                              data: TextSelectionThemeData(
+                                selectionHandleColor: pastelYellow,
+                                cursorColor: pastelYellow,
+                                selectionColor: pastelYellow.withOpacity(0.3),
+                              ),
+                              child: TextField(
+                                controller: _codeController,
+                                style: const TextStyle(color: Colors.white),
+                                cursorColor: pastelYellow,
+                                decoration: InputDecoration(
+                                  hintText: 'Entrer un code de partie',
+                                  hintStyle: const TextStyle(color: Colors.white54),
+                                  filled: true,
+                                  fillColor: const Color(0xFF2A2A2A),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                          ),
+                          if (_joinError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                _joinError!,
+                                style: const TextStyle(
+                                  color: Colors.redAccent,
+                                  fontSize: 14,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              final code = _codeController.text;
+                              if (code.trim().isEmpty) {
+                                setDialogState(() {
+                                  _joinError = 'Veuillez entrer un code de partie';
+                                });
+                                return;
+                              }
+                              _joinMultiplayerGame(dialogContext, code, setDialogState);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              'Rejoindre une partie',
+                              style: TextStyle(
+                                color: Color(0xFF303030),
+                                fontFamily: 'Poppins',
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
-                      ..._gameSession!.playerIds.map((playerId) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.person,
-                              color: playerId == AuthService.currentUser?.uid
-                                  ? const Color(0xFFF1E173)
-                                  : Colors.white70,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              playerId == AuthService.currentUser?.uid ? 'Vous' : 'Joueur ${playerId.substring(0, 4)}',
-                              style: TextStyle(
-                                color: playerId == AuthService.currentUser?.uid
-                                    ? const Color(0xFFF1E173)
-                                    : Colors.white,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (_gameCode != null) {
-                            await MultiplayerService.leaveGame(_gameCode!);
-                            if (mounted) {
-                              setState(() {
-                                _gameSession = null;
-                                _gameCode = null;
-                              });
-                              if (dialogContext.mounted) {
-                                Navigator.of(dialogContext).pop();
-                              }
-                            }
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red[400],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
-                        child: const Text(
-                          'Quitter la partie',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Mode Multijoueur',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () => _createMultiplayerGame(dialogContext),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF1E173),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
-                        child: const Text(
-                          'Créer une partie',
-                          style: TextStyle(
-                            color: Color(0xFF303030),
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextSelectionTheme(
-                          data: TextSelectionThemeData(
-                            selectionHandleColor: pastelYellow,
-                            cursorColor: pastelYellow,
-                            selectionColor: pastelYellow.withOpacity(0.3),
-                          ),
-                          child: TextField(
-                            controller: _codeController,
-                            style: const TextStyle(color: Colors.white),
-                            cursorColor: pastelYellow,
-                            decoration: InputDecoration(
-                              hintText: 'Entrer un code de partie',
-                              hintStyle: const TextStyle(color: Colors.white54),
-                              filled: true,
-                              fillColor: const Color(0xFF2A2A2A),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                          ),
-                      ),
-                      if (_joinError != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            _joinError!,
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 14,
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          final code = _codeController.text;
-                          if (code.trim().isEmpty) {
-                            setDialogState(() {
-                              _joinError = 'Veuillez entrer un code de partie';
-                            });
-                            return;
-                          }
-                          _joinMultiplayerGame(dialogContext, code, setDialogState);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
-                        child: const Text(
-                          'Rejoindre une partie',
-                          style: TextStyle(
-                            color: Color(0xFF303030),
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -506,7 +525,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     if (_gameCode != null) {
       _gameSubscription = MultiplayerService.watchGameSession(_gameCode!)
           .listen((session) {
-        if (mounted) {
+        if (mounted && session != null) {
           setState(() => _gameSession = session);
           
           // Update local guesses with other players' guesses
@@ -521,6 +540,12 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               _guesses.insert(0, guess);
             }
           }
+        } else if (mounted && session == null) {
+          // Handle case where session becomes null (game ended/deleted)
+          setState(() {
+            _gameSession = null;
+            _gameCode = null;
+          });
         }
       });
     }
