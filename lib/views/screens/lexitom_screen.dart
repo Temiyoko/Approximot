@@ -87,7 +87,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     return word
         .toLowerCase()
         .trim()
-        .replaceAll(RegExp(r'[^a-zà����äéèêëîïôöùûüÿçæœ\-]'), '');
+        .replaceAll(RegExp(r'[^a-zàäéèêëîïôöùûüÿçæœ\-]'), '');
   }
 
   Future<void> _handleGuess() async {
@@ -759,7 +759,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         style: const TextStyle(color: Colors.white),
                         cursorColor: pastelYellow,
                         keyboardType: TextInputType.text,
-                        textInputAction: TextInputAction.done,
+                        textInputAction: TextInputAction.search,
                         onSubmitted: (_) => _handleGuess(),
                         decoration: InputDecoration(
                           hintText: 'Entrez votre proposition...',
