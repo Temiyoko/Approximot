@@ -267,7 +267,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                 : const Stream.empty(),
             initialData: _gameSession,
             builder: (context, snapshot) {
-              // If we don't have a game code, show the initial options
               if (_gameCode == null) {
                 return Dialog(
                   backgroundColor: const Color(0xFF303030),
