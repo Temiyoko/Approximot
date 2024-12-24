@@ -8,7 +8,7 @@ class GameSession {
   final DateTime createdAt;
   final bool isActive;
   final bool wordFound;
-  final String? winnerId;
+  final List<String> winners;
   final String? currentUserId;
 
   GameSession({
@@ -19,7 +19,7 @@ class GameSession {
     required this.createdAt,
     required this.isActive,
     this.wordFound = false,
-    this.winnerId,
+    this.winners = const [],
     this.currentUserId,
   });
 
@@ -33,7 +33,7 @@ class GameSession {
     'createdAt': createdAt.toIso8601String(),
     'isActive': isActive,
     'wordFound': wordFound,
-    'winnerId': winnerId,
+    'winners': winners,
     'currentUserId': currentUserId,
   };
 
@@ -50,7 +50,7 @@ class GameSession {
     createdAt: DateTime.parse(json['createdAt']),
     isActive: json['isActive'],
     wordFound: json['wordFound'] ?? false,
-    winnerId: json['winnerId'],
+    winners: List<String>.from(json['winners'] ?? []),
     currentUserId: json['currentUserId'],
   );
 }

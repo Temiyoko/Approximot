@@ -38,7 +38,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   String? currentWord;
   DateTime? _wordExpiryTime;
   bool _showRevealButton = false;
-  bool _hasFoundWord = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -125,36 +124,41 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         });
 
         if (guess == currentWord) {
-          _hasFoundWord = true;
-          await MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
-          final dialogContext = context;
-
-          if (mounted) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                showDialog(
-                  context: dialogContext,
-                  barrierDismissible: false,
-                  builder: (BuildContext dialogContext) {
-                    return AlertDialog(
-                      title: const Text('Félicitations !'),
-                      content: Text('Vous avez trouvé le mot : $currentWord'),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            if (mounted) {
-                              FocusScope.of(dialogContext).requestFocus(_focusNode);
-                            }
-                          },
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              }
-            });
+          final isAlreadyWinner = _gameSession?.winners.contains(AuthService.currentUser?.uid) ?? false;
+          
+          if (_gameCode != null && !isAlreadyWinner) {
+            await MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
+          }
+          if (!isAlreadyWinner) {
+            final dialogContext = context;
+            
+            if (mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  showDialog(
+                    context: dialogContext,
+                    barrierDismissible: false,
+                    builder: (BuildContext dialogContext) {
+                      return AlertDialog(
+                        title: const Text('Félicitations !'),
+                        content: Text('Vous avez trouvé le mot : $currentWord'),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(dialogContext);
+                              if (mounted) {
+                                FocusScope.of(dialogContext).requestFocus(_focusNode);
+                              }
+                            },
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+              });
+            }
           }
         } else {
           if (_gameCode != null && _lastGuessResult != null) {
@@ -552,14 +556,14 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             _gameSession = session;
             
             _showRevealButton = session.wordFound && 
-                session.winnerId != null && 
-                session.winnerId != AuthService.currentUser?.uid &&
+                session.winners.isNotEmpty &&
+                !session.winners.contains(AuthService.currentUser?.uid) &&
                 _lastGuessResult?.isCorrect != true;
           });
           
           if (session.wordFound &&
-              session.winnerId != null && 
-              session.winnerId != AuthService.currentUser?.uid) {
+              session.winners.isNotEmpty &&
+              !session.winners.contains(AuthService.currentUser?.uid)) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 showDialog(
@@ -568,7 +572,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                   builder: (BuildContext dialogContext) {
                     return AlertDialog(
                       title: const Text('Mot trouvé !'),
-                      content: const Text('Un joueur a trouvé le mot secret !'),
+                      content: Text('Un joueur a trouvé le mot secret !',),
                       actions: [
                         TextButton(
                           onPressed: () {
@@ -810,7 +814,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               ),
               child: Row(
                 children: [
-                  if (_showRevealButton && !_hasFoundWord)
+                  if (_showRevealButton)
                     IconButton(
                       icon: Icon(
                         Icons.visibility,

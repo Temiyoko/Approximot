@@ -120,7 +120,7 @@ class MultiplayerService {
   static Future<void> notifyWordFound(String code, String playerId) async {
     await _db.collection('game_sessions').doc(code).update({
       'wordFound': true,
-      'winnerId': playerId,
+      'winners': FieldValue.arrayUnion([playerId]),
       'lastUpdate': FieldValue.serverTimestamp(),
     });
   }

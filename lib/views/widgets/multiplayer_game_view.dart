@@ -53,7 +53,7 @@ class MultiplayerGameView extends StatelessWidget {
             ),
 
             if (session.wordFound) ...[
-              if (session.winnerId == AuthService.currentUser?.uid) 
+              if (session.winners.contains(AuthService.currentUser?.uid)) 
                 Container(
                   padding: const EdgeInsets.all(16),
                   child: const Text(
@@ -64,9 +64,8 @@ class MultiplayerGameView extends StatelessWidget {
               else 
                 Container(
                   padding: const EdgeInsets.all(16),
-                  child: const Text(
-                    'Un joueur a trouvé le mot correct !',
-                    style: TextStyle(color: Colors.green, fontSize: 18),
+                  child: Text('Un joueur a trouvé le mot caché !',
+                    style: const TextStyle(color: Colors.green, fontSize: 18),
                   ),
                 ),
             ],
