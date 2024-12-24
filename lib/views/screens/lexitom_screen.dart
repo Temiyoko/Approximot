@@ -37,6 +37,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   String? _joinError;
   String? currentWord;
   DateTime? _wordExpiryTime;
+  bool _showRevealButton = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -299,8 +300,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                               ),
                               SelectableText(
                                 'Code: ${snapshot.data!.code}',
-                                style: const TextStyle(
-                                  color: Color(0xFFF1E173),
+                                style: TextStyle(
+                                  color: pastelYellow,
                                   fontFamily: 'Poppins',
                                 ),
                               ),
@@ -314,7 +315,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                 Icon(
                                   Icons.person,
                                   color: playerId == AuthService.currentUser?.uid
-                                      ? const Color(0xFFF1E173)
+                                      ? pastelYellow
                                       : Colors.white70,
                                   size: 20,
                                 ),
@@ -323,7 +324,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                   playerId == AuthService.currentUser?.uid ? 'Vous' : 'Joueur ${playerId.substring(0, 4)}',
                                   style: TextStyle(
                                     color: playerId == AuthService.currentUser?.uid
-                                        ? const Color(0xFFF1E173)
+                                        ? pastelYellow
                                         : Colors.white,
                                     fontFamily: 'Poppins',
                                   ),
@@ -340,6 +341,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                   setState(() {
                                     _gameSession = null;
                                     _gameCode = null;
+                                    _showRevealButton = false;
                                   });
                                   if (dialogContext.mounted) {
                                     Navigator.of(dialogContext).pop();
@@ -379,7 +381,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                           ElevatedButton(
                             onPressed: () => _createMultiplayerGame(dialogContext),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFF1E173),
+                              backgroundColor: pastelYellow,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                               ),
@@ -533,7 +535,14 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       _gameSubscription = MultiplayerService.watchGameSession(_gameCode!)
           .listen((session) {
         if (mounted && session != null) {
-          setState(() => _gameSession = session);
+          setState(() {
+            _gameSession = session;
+            
+            _showRevealButton = session.wordFound && 
+                session.winnerId != null && 
+                session.winnerId != AuthService.currentUser?.uid &&
+                _lastGuessResult?.isCorrect != true;
+          });
           
           if (session.wordFound &&
               session.winnerId != null && 
@@ -546,7 +555,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                   builder: (BuildContext dialogContext) {
                     return AlertDialog(
                       title: const Text('Mot trouvé !'),
-                      content: Text('Un joueur a trouvé le mot secret !'),
+                      content: const Text('Un joueur a trouvé le mot secret !'),
                       actions: [
                         TextButton(
                           onPressed: () {
@@ -579,6 +588,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           setState(() {
             _gameSession = null;
             _gameCode = null;
+            _showRevealButton = false;
           });
         }
       });
@@ -646,8 +656,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(30),
-                splashColor: const Color(0xFFF1E173).withOpacity(0.3),
-                highlightColor: const Color(0xFFF1E173).withOpacity(0.1),
+                splashColor: pastelYellow.withOpacity(0.3),
+                highlightColor: pastelYellow.withOpacity(0.1),
                 child: Container(
                   padding: const EdgeInsets.all(8),
                   child: const Icon(
@@ -781,6 +791,19 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               ),
               child: Row(
                 children: [
+                  if (_showRevealButton)
+                    IconButton(
+                      icon: Icon(
+                        Icons.visibility,
+                        color: pastelYellow,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _controller.text = currentWord ?? '';
+                        });
+                      },
+                      tooltip: 'Révéler le mot',
+                    ),
                   Expanded(
                     child: TextSelectionTheme(
                       data: TextSelectionThemeData(
