@@ -11,6 +11,7 @@ import '../../services/daily_timer_service.dart';
 import '../../services/word_embedding_service.dart';
 import '../../services/multiplayer_service.dart';
 import '../../models/guess_result.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MainScreen extends StatefulWidget {
   final bool fromContainer;
@@ -51,9 +52,39 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       _updateTimeLeft();
     });
 
+    _checkForActiveGame();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showGameRules(context);
     });
+  }
+
+  Future<void> _checkForActiveGame() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!userDoc.exists) return;
+
+      final activeGame = userDoc.data()?['activeGame'];
+      if (activeGame != null) {
+        if (mounted) {
+          setState(() {
+            _gameCode = activeGame;
+          });
+          _subscribeToGameSession();
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking for active game: $e');
+      }
+    }
   }
 
   @override
