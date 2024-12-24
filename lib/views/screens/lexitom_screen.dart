@@ -47,17 +47,23 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
-    _updateCurrentWord();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await _updateCurrentWord();
     
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateTimeLeft();
     });
 
-    _checkForActiveGame();
+    await _checkForActiveGame();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showGameRules(context);
-    });
+    if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showGameRules(context);
+      });
+    }
   }
 
   Future<void> _checkForActiveGame() async {
@@ -74,11 +80,35 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
       final activeGame = userDoc.data()?['activeGame'];
       if (activeGame != null) {
-        if (mounted) {
-          setState(() {
-            _gameCode = activeGame;
-          });
-          _subscribeToGameSession();
+        final gameDoc = await FirebaseFirestore.instance
+            .collection('game_sessions')
+            .doc(activeGame)
+            .get();
+
+        if (gameDoc.exists) {
+          final gameData = gameDoc.data()!;
+          final playerGuesses = gameData['playerGuesses'] as Map<String, dynamic>;
+
+          if (mounted) {
+            setState(() {
+              _gameCode = activeGame;
+              _gameSession = GameSession.fromJson(gameData);
+
+              _guesses.clear();
+
+              playerGuesses.forEach((playerId, guesses) {
+                final guessesList = guesses as List;
+                for (final guess in guessesList) {
+                  final guessResult = GuessResult.fromJson(guess);
+                  _guesses.add(guessResult);
+                }
+              });
+
+              _guesses.sort((a, b) => b.similarity.compareTo(a.similarity));
+            });
+            
+            _subscribeToGameSession();
+          }
         }
       }
     } catch (e) {
@@ -100,10 +130,10 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
   void _updateTimeLeft() {
     if (!mounted || _wordExpiryTime == null) return;
-    
+
     final now = DateTime.now();
     final difference = _wordExpiryTime!.difference(now);
-    
+
     if (difference.isNegative) {
       _updateCurrentWord();
       setState(() {
@@ -157,14 +187,16 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         });
 
         if (guess == currentWord) {
-          final isAlreadyWinner = _gameSession?.winners.contains(AuthService.currentUser?.uid) ?? false;
-          
+          final isAlreadyWinner = _gameSession?.winners.contains(
+              AuthService.currentUser?.uid) ?? false;
+
           if (_gameCode != null && !isAlreadyWinner) {
-            await MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
+            await MultiplayerService.notifyWordFound(
+                _gameCode!, AuthService.currentUser?.uid ?? '');
           }
           if (!isAlreadyWinner) {
             final dialogContext = context;
-            
+
             if (mounted) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
@@ -180,7 +212,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                             onPressed: () {
                               Navigator.pop(dialogContext);
                               if (mounted) {
-                                FocusScope.of(dialogContext).requestFocus(_focusNode);
+                                FocusScope.of(dialogContext).requestFocus(
+                                    _focusNode);
                               }
                             },
                             child: const Text('OK'),
@@ -223,8 +256,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         print('Error checking guess: $e');
       }
       if (mounted) {
-        setState(() {
-        });
+        setState(() {});
       }
     } finally {
       if (mounted) {
@@ -302,223 +334,253 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
     showDialog(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return StreamBuilder<GameSession?>(
-            stream: _gameCode != null 
-                ? MultiplayerService.watchGameSession(_gameCode!)
-                : const Stream.empty(),
-            initialData: _gameSession,
-            builder: (context, snapshot) {
-              if (_gameCode == null) {
-                return Dialog(
-                  backgroundColor: const Color(0xFF303030),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Mode Multijoueur',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () => _createMultiplayerGame(dialogContext, setDialogState),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: pastelYellow,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          child: const Text(
-                            'Créer une partie',
-                            style: TextStyle(
-                              color: Color(0xFF303030),
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextSelectionTheme(
-                          data: TextSelectionThemeData(
-                            selectionHandleColor: pastelYellow,
-                            cursorColor: pastelYellow,
-                            selectionColor: pastelYellow.withOpacity(0.3),
-                          ),
-                          child: TextField(
-                            controller: _codeController,
-                            style: const TextStyle(color: Colors.white),
-                            cursorColor: pastelYellow,
-                            decoration: InputDecoration(
-                              hintText: 'Entrer un code de partie',
-                              hintStyle: const TextStyle(color: Colors.white54),
-                              filled: true,
-                              fillColor: const Color(0xFF2A2A2A),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (_joinError != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              _joinError!,
-                              style: const TextStyle(
-                                color: Colors.redAccent,
-                                fontSize: 14,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            final code = _codeController.text;
-                            if (code.trim().isEmpty) {
-                              setDialogState(() {
-                                _joinError = 'Veuillez entrer un code de partie';
-                              });
-                              return;
-                            }
-                            _joinMultiplayerGame(dialogContext, code, setDialogState);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          child: const Text(
-                            'Rejoindre une partie',
-                            style: TextStyle(
-                              color: Color(0xFF303030),
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              final session = snapshot.data;
-              if (session == null) return const SizedBox.shrink();
-
-              return Dialog(
-                backgroundColor: const Color(0xFF303030),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Partie en cours',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                          SelectableText(
-                            'Code: ${session.code}',
-                            style: TextStyle(
-                              color: pastelYellow,
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      ...session.playerIds.map((playerId) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
+      builder: (dialogContext) =>
+          StatefulBuilder(
+            builder: (context, setDialogState) {
+              return StreamBuilder<GameSession?>(
+                stream: _gameCode != null
+                    ? MultiplayerService.watchGameSession(_gameCode!)
+                    : const Stream.empty(),
+                initialData: _gameSession,
+                builder: (context, snapshot) {
+                  if (_gameCode == null) {
+                    return Dialog(
+                      backgroundColor: const Color(0xFF303030),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.person,
-                              color: playerId == AuthService.currentUser?.uid
-                                  ? pastelYellow
-                                  : Colors.white70,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              playerId == AuthService.currentUser?.uid ? 'Vous' : 'Joueur ${playerId.substring(0, 4)}',
+                            const Text(
+                              'Mode Multijoueur',
                               style: TextStyle(
-                                color: playerId == AuthService.currentUser?.uid
-                                    ? pastelYellow
-                                    : Colors.white,
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
                                 fontFamily: 'Poppins',
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton(
+                              onPressed: () =>
+                                  _createMultiplayerGame(
+                                  dialogContext, setDialogState),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: pastelYellow,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              child: const Text(
+                                'Créer une partie',
+                                style: TextStyle(
+                                  color: Color(0xFF303030),
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            TextSelectionTheme(
+                              data: TextSelectionThemeData(
+                                selectionHandleColor: pastelYellow,
+                                cursorColor: pastelYellow,
+                                selectionColor: pastelYellow.withOpacity(0.3),
+                              ),
+                              child: TextField(
+                                controller: _codeController,
+                                style: const TextStyle(color: Colors.white),
+                                cursorColor: pastelYellow,
+                                decoration: InputDecoration(
+                                  hintText: 'Entrer un code de partie',
+                                  hintStyle: const TextStyle(
+                                      color: Colors.white54),
+                                  filled: true,
+                                  fillColor: const Color(0xFF2A2A2A),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (_joinError != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  _joinError!,
+                                  style: const TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 14,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                final code = _codeController.text;
+                                if (code
+                                    .trim()
+                                    .isEmpty) {
+                                  setDialogState(() {
+                                    _joinError =
+                                    'Veuillez entrer un code de partie';
+                                  });
+                                  return;
+                                }
+                                _joinMultiplayerGame(
+                                    dialogContext, code, setDialogState);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                              ),
+                              child: const Text(
+                                'Rejoindre une partie',
+                                style: TextStyle(
+                                  color: Color(0xFF303030),
+                                  fontFamily: 'Poppins',
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      )),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (_gameCode != null) {
-                            await MultiplayerService.leaveGame(_gameCode!);
-                            if (mounted) {
-                              setState(() {
-                                _gameSession = null;
-                                _gameCode = null;
-                                _showRevealButton = false;
-                              });
-                              setDialogState(() {
-                                _gameSession = null;
-                                _gameCode = null;
-                              });
-                            }
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red[400],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                        ),
-                        child: const Text(
-                          'Quitter la partie',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
                       ),
-                    ],
-                  ),
-                ),
+                    );
+                  }
+
+                  final session = snapshot.data;
+                  if (session == null) return const SizedBox.shrink();
+
+                  return Dialog(
+                    backgroundColor: const Color(0xFF303030),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Partie en cours',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                              SelectableText(
+                                'Code: ${session.code}',
+                                style: TextStyle(
+                                  color: pastelYellow,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          ...session.playerIds.map((playerId) =>
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.person,
+                                      color: playerId ==
+                                          AuthService.currentUser?.uid
+                                          ? pastelYellow
+                                          : Colors.white70,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      playerId == AuthService.currentUser?.uid
+                                          ? 'Vous'
+                                          : 'Joueur ${playerId.substring(
+                                          0, 4)}',
+                                      style: TextStyle(
+                                        color: playerId ==
+                                            AuthService.currentUser?.uid
+                                            ? pastelYellow
+                                            : Colors.white,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: () async {
+                              if (_gameCode != null) {
+                                await MultiplayerService.leaveGame(_gameCode!);
+                                if (mounted) {
+                                  setState(() {
+                                    _gameSession = null;
+                                    _gameCode = null;
+                                    _showRevealButton = false;
+                                  });
+                                  setDialogState(() {
+                                    _gameSession = null;
+                                    _gameCode = null;
+                                  });
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red[400],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              'Quitter la partie',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               );
             },
-          );
-        },
-      ),
+          ),
     );
   }
 
-  Future<void> _createMultiplayerGame(BuildContext context, StateSetter setDialogState) async {
+  Future<void> _createMultiplayerGame(BuildContext context,
+      StateSetter setDialogState) async {
     final userId = AuthService.currentUser?.uid;
     if (userId == null) return;
 
     try {
       final session = await MultiplayerService.createGameSession(userId);
       if (!mounted) return;
+
+      if (_guesses.isNotEmpty) {
+        for (final guess in _guesses) {
+          if (!guess.isCorrect) {
+            await MultiplayerService.addGuess(
+              session.code,
+              userId,
+              guess,
+            );
+          }
+        }
+      }
 
       setState(() {
         _gameCode = session.code;
@@ -543,7 +605,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   }
 
   Future<void> _joinMultiplayerGame(
-    BuildContext context, 
+    BuildContext context,
     String code,
     StateSetter setDialogState
   ) async {
@@ -555,11 +617,34 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       if (!mounted) return;
 
       if (session != null) {
+        if (_guesses.isNotEmpty) {
+          for (final guess in _guesses) {
+            if (!guess.isCorrect) {
+              await MultiplayerService.addGuess(
+                code,
+                userId,
+                guess,
+              );
+            }
+          }
+        }
+
         setState(() {
           _gameCode = code;
           _gameSession = session;
           _joinError = null;
+
+          session.playerGuesses.forEach((playerId, guesses) {
+            for (final guess in guesses) {
+              if (!_guesses.any((g) => g.word == guess.word)) {
+                _guesses.add(guess);
+              }
+            }
+          });
+
+          _guesses.sort((a, b) => b.similarity.compareTo(a.similarity));
         });
+        
         _subscribeToGameSession();
 
         setDialogState(() {
@@ -592,8 +677,19 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                 session.winners.isNotEmpty &&
                 !session.winners.contains(AuthService.currentUser?.uid) &&
                 _lastGuessResult?.isCorrect != true;
+
+            final currentWords = _guesses.map((g) => g.word).toSet();
+            
+            for (final playerGuesses in session.playerGuesses.values) {
+              for (final guess in playerGuesses) {
+                if (!currentWords.contains(guess.word)) {
+                  _guesses.add(guess);
+                  currentWords.add(guess.word);
+                }
+              }
+            }
           });
-          
+
           if (session.wordFound &&
               session.winners.isNotEmpty &&
               !session.winners.contains(AuthService.currentUser?.uid)) {
@@ -623,17 +719,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               }
             });
           }
-          
-          final otherPlayersGuesses = session.playerGuesses.entries
-              .where((entry) => entry.key != AuthService.currentUser?.uid)
-              .expand((entry) => entry.value)
-              .toList();
-              
-          for (final guess in otherPlayersGuesses) {
-            if (!_guesses.any((g) => g.word == guess.word)) {
-              _guesses.insert(0, guess);
-            }
-          }
         } else if (mounted && session == null) {
           setState(() {
             _gameSession = null;
@@ -654,8 +739,12 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           if (currentWord != newWord) {
             _guesses.clear();
             _lastGuessResult = null;
+            
+            if (_gameCode != null) {
+              MultiplayerService.clearAllGuesses(_gameCode!);
+            }
           }
-          
+
           currentWord = newWord;
           final timeRemaining = Duration(milliseconds: wordData['timeRemaining']);
           _wordExpiryTime = DateTime.now().add(timeRemaining);
@@ -811,7 +900,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             ),
 
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -931,7 +1021,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             if (_errorMessage != null)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0).copyWith(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0)
+                    .copyWith(
                     bottom: 17.0),
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -974,7 +1065,9 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                     '${(_lastGuessResult!.similarity * 100).toStringAsFixed(
                         1)}%',
                     style: TextStyle(
-                      color: _lastGuessResult!.isCorrect ? Colors.green : Colors
+                      color: _lastGuessResult!.isCorrect
+                          ? Colors.green
+                          : Colors
                           .white,
                       fontSize: 18,
                       fontFamily: 'Poppins',
@@ -1061,7 +1154,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         ),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -1074,9 +1168,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                               ),
                             ),
                             Text(
-                              '${(guess.similarity * 100).toStringAsFixed(1)}%',
+                              '${(guess.similarity * 100).toStringAsFixed(
+                                  1)}%',
                               style: TextStyle(
-                                color: guess.isCorrect ? Colors.green : Colors.white,
+                                color: guess.isCorrect ? Colors.green : Colors
+                                    .white,
                                 fontSize: 16,
                                 fontFamily: 'Poppins',
                                 fontWeight: FontWeight.bold,
