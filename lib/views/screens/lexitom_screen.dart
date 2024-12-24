@@ -38,6 +38,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   String? currentWord;
   DateTime? _wordExpiryTime;
   bool _showRevealButton = false;
+  bool _hasFoundWord = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -124,6 +125,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         });
 
         if (guess == currentWord) {
+          _hasFoundWord = true;
           await MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
           final dialogContext = context;
 
@@ -808,7 +810,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               ),
               child: Row(
                 children: [
-                  if (_showRevealButton)
+                  if (_showRevealButton && !_hasFoundWord)
                     IconButton(
                       icon: Icon(
                         Icons.visibility,
