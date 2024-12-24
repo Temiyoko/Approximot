@@ -39,6 +39,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   String? currentWord;
   DateTime? _wordExpiryTime;
   bool _showRevealButton = false;
+  String? _lastSubmittedWord;
 
   @override
   bool get wantKeepAlive => true;
@@ -126,6 +127,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     final guess = _cleanWord(_controller.text);
     if (guess.isEmpty) return;
 
+    _lastSubmittedWord = guess;
     _controller.clear();
     FocusScope.of(context).requestFocus(_focusNode);
 
@@ -672,6 +674,12 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     });
   }
 
+  void _retrieveLastGuess() {
+    if (_lastSubmittedWord != null) {
+      _controller.text = _lastSubmittedWord!;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -874,7 +882,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         textInputAction: TextInputAction.search,
                         onSubmitted: (_) => _handleGuess(),
                         decoration: InputDecoration(
-                          hintText: 'Entrez votre proposition...',
+                          hintText: 'Entrez votre mot...',
                           hintStyle: TextStyle(color: Colors.grey[400]),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
@@ -882,6 +890,12 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         ),
                       ),
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.arrow_back, color: pastelYellow),
+                    onPressed: () {
+                      _retrieveLastGuess();
+                    },
                   ),
                   Container(
                     margin: const EdgeInsets.all(4),
