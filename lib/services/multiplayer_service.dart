@@ -30,10 +30,35 @@ class MultiplayerService {
     );
 
     final batch = _db.batch();
+    
+    final userDoc = await _db.collection('users').doc(user.uid).get();
+    if (userDoc.exists) {
+      final activeGame = userDoc.data()?['activeGame'];
+      
+      if (activeGame != null) {
+        final gameDoc = await _db.collection('game_sessions').doc(activeGame).get();
+        if (gameDoc.exists) {
+          final gameData = GameSession.fromJson(gameDoc.data()!);
+          final remainingPlayers = List<String>.from(gameData.playerIds)
+            ..remove(user.uid);
+
+          if (remainingPlayers.isEmpty) {
+            batch.delete(_db.collection('game_sessions').doc(activeGame));
+          } else {
+            batch.update(_db.collection('game_sessions').doc(activeGame), {
+              'playerIds': FieldValue.arrayRemove([user.uid]),
+              'playerGuesses.${user.uid}': FieldValue.delete(),
+            });
+          }
+        }
+      }
+    }
+
     batch.set(_db.collection('game_sessions').doc(code), session.toJson());
-    batch.update(_db.collection('users').doc(user.uid), {
-      'activeGames': FieldValue.arrayUnion([code])
-    });
+    batch.set(_db.collection('users').doc(user.uid), {
+      'activeGame': code
+    }, SetOptions(merge: true));
+
     await batch.commit();
 
     return session;
@@ -46,10 +71,41 @@ class MultiplayerService {
     final session = GameSession.fromJson(doc.data()!);
     if (!session.isActive) return null;
 
-    await _db.collection('game_sessions').doc(code).update({
+    final batch = _db.batch();
+    
+    final userDoc = await _db.collection('users').doc(playerId).get();
+    if (userDoc.exists) {
+      final activeGame = userDoc.data()?['activeGame'];
+      
+      if (activeGame != null && activeGame != code) {
+        final gameDoc = await _db.collection('game_sessions').doc(activeGame).get();
+        if (gameDoc.exists) {
+          final gameData = GameSession.fromJson(gameDoc.data()!);
+          final remainingPlayers = List<String>.from(gameData.playerIds)
+            ..remove(playerId);
+
+          if (remainingPlayers.isEmpty) {
+            batch.delete(_db.collection('game_sessions').doc(activeGame));
+          } else {
+            batch.update(_db.collection('game_sessions').doc(activeGame), {
+              'playerIds': FieldValue.arrayRemove([playerId]),
+              'playerGuesses.$playerId': FieldValue.delete(),
+            });
+          }
+        }
+      }
+    }
+
+    batch.update(_db.collection('game_sessions').doc(code), {
       'playerIds': FieldValue.arrayUnion([playerId]),
       'playerGuesses.$playerId': [],
     });
+
+    batch.set(_db.collection('users').doc(playerId), {
+      'activeGame': code
+    }, SetOptions(merge: true));
+
+    await batch.commit();
 
     return GameSession.fromJson((await doc.reference.get()).data()!);
   }
@@ -99,12 +155,12 @@ class MultiplayerService {
 
       if (userDoc.exists) {
         batch.update(_db.collection('users').doc(user.uid), {
-          'activeGames': FieldValue.arrayRemove([code])
+          'activeGame': null
         });
       } else {
         await AuthService.createUserDocument(user);
         batch.update(_db.collection('users').doc(user.uid), {
-          'activeGames': FieldValue.arrayRemove([code])
+          'activeGame': null
         });
       }
 

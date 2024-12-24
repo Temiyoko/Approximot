@@ -7,7 +7,7 @@ class UserModel {
   final String? photoURL;
   final DateTime createdAt;
   final DateTime lastSeen;
-  final List<String> activeGames;
+  final String? activeGame;
 
   UserModel({
     required this.id,
@@ -16,7 +16,7 @@ class UserModel {
     this.photoURL,
     required this.createdAt,
     required this.lastSeen,
-    required this.activeGames,
+    this.activeGame,
   });
 
   Map<String, dynamic> toJson() => {
@@ -26,7 +26,7 @@ class UserModel {
     'photoURL': photoURL,
     'createdAt': createdAt.toIso8601String(),
     'lastSeen': lastSeen.toIso8601String(),
-    'activeGames': activeGames,
+    'activeGame': activeGame,
   };
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
@@ -36,6 +36,6 @@ class UserModel {
     photoURL: json['photoURL'],
     createdAt: (json['createdAt'] as Timestamp).toDate(),
     lastSeen: (json['lastSeen'] as Timestamp).toDate(),
-    activeGames: List<String>.from(json['activeGames'] ?? []),
+    activeGame: json['activeGame'],
   );
 } 
