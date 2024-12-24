@@ -115,6 +115,10 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           isCorrect: guess == currentWord,
         );
 
+        if (!_guesses.any((g) => g.word == guess)) {
+          _guesses.insert(0, guessResult);
+        }
+
         setState(() {
           _lastGuessResult = guessResult;
         });
