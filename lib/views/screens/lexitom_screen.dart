@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +15,8 @@ import '../../models/guess_result.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/single_player_service.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import '../widgets/word_info_dialog.dart';
 
 class MainScreen extends StatefulWidget {
   final bool fromContainer;
@@ -865,6 +868,65 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     }
   }
 
+  Future<void> _fetchWordWiki(String word) async {
+    final url = 'https://api-definition.fgainza.fr/app/api_wiki.php';
+    final response = await http.post(
+        Uri.parse(url),
+        body: {'motWiki': word},
+    );
+
+    if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        if (kDebugMode) {
+            print('API Response: $data');
+        }
+
+        final directLink = data['direct_link'] ?? '';
+        final nature = List<String>.from(data['nature'] ?? []);
+
+        final genreData = data['genre'] as List;
+        final List<List<String>> genre = genreData.map((item) {
+            if (item is List) {
+                return List<String>.from(item);
+            } else if (item is String) {
+                return [item];
+            }
+            return <String>[];
+        }).toList();
+
+        final natureDefData = data['natureDef'] as List;
+        final List<List<Map<String, String>>> natureDef = natureDefData.map((defList) {
+            return (defList as List).map((def) {
+                final Map<String, String> convertedDef = {};
+                if (def is Map) {
+                    def.forEach((key, value) {
+                        convertedDef[key.toString()] = value.toString();
+                    });
+                }
+                return convertedDef;
+            }).toList();
+        }).toList();
+
+        if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => WordInfoDialog(
+                word: word,
+                directLink: directLink,
+                nature: nature,
+                genre: genre,
+                natureDef: natureDef,
+              ),
+            );
+        }
+    } else {
+        if (kDebugMode) {
+            print('Error fetching data: ${response.statusCode}');
+        }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -1235,41 +1297,44 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                       ..sort((a, b) => b.similarity.compareTo(a.similarity));
                     final guess = sortedGuesses[index];
 
-                    return Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: pastelYellow.withOpacity(0.1),
-                            width: 1,
+                    return GestureDetector(
+                      onTap: () => _fetchWordWiki(guess.word),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: pastelYellow.withOpacity(0.1),
+                              width: 1,
+                            ),
                           ),
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              guess.word,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontFamily: 'Poppins',
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                guess.word,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontFamily: 'Poppins',
+                                ),
                               ),
-                            ),
-                            Text(
-                              '${(guess.similarity * 100).toStringAsFixed(
-                                  1)}%',
-                              style: TextStyle(
-                                color: guess.isCorrect ? Colors.green : Colors
-                                    .white,
-                                fontSize: 16,
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.bold,
+                              Text(
+                                '${(guess.similarity * 100).toStringAsFixed(
+                                    1)}%',
+                                style: TextStyle(
+                                  color: guess.isCorrect ? Colors.green : Colors
+                                      .white,
+                                  fontSize: 16,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     );
