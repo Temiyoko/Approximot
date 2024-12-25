@@ -1015,35 +1015,38 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: _lastWords.map((wordData) => Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: pastelYellow.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Mot du ${DateFormat('dd/MM/yyyy').format(wordData['timestamp'])}',
-                              style: TextStyle(
-                                color: Colors.grey[400],
-                                fontSize: 12,
-                                fontFamily: 'Poppins',
+                      children: _lastWords.map((wordData) => GestureDetector(
+                        onTap: () => _fetchWordWiki(wordData['word']),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: pastelYellow.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Mot du ${DateFormat('dd/MM/yyyy').format(wordData['timestamp'])}',
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 12,
+                                  fontFamily: 'Poppins',
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              wordData['word'],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w500,
+                              const SizedBox(height: 4),
+                              Text(
+                                wordData['word'],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       )).toList(),
                     ),
