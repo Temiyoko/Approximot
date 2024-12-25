@@ -120,6 +120,17 @@ class MultiplayerService {
   }
 
   static Future<void> addGuess(String code, String playerId, GuessResult guess) async {
+    final sessionDoc = await _db.collection('game_sessions').doc(code).get();
+    if (!sessionDoc.exists) return;
+
+    final sessionData = sessionDoc.data()!;
+    final playerGuesses = sessionData['playerGuesses'] as Map<String, dynamic>;
+    final existingGuesses = playerGuesses[playerId] as List<dynamic>? ?? [];
+
+    if (existingGuesses.any((g) => GuessResult.fromJson(g).word == guess.word)) {
+      return;
+    }
+
     await _db.collection('game_sessions').doc(code).update({
       'playerGuesses.$playerId': FieldValue.arrayUnion([guess.toJson()]),
       'lastUpdate': FieldValue.serverTimestamp(),

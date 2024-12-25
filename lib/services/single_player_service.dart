@@ -17,6 +17,11 @@ class SinglePlayerService {
       }, SetOptions(merge: true));
     }
 
+    final existingGuesses = userDoc.data()?['singlePlayerGuesses'] as List? ?? [];
+    if (existingGuesses.any((g) => GuessResult.fromJson(g).word == guess.word)) {
+      return;
+    }
+
     await _db.collection('users').doc(user.uid).update({
       'singlePlayerGuesses': FieldValue.arrayUnion([guess.toJson()]),
     });
