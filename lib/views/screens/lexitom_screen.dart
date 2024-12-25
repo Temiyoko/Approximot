@@ -12,6 +12,7 @@ import '../../services/word_embedding_service.dart';
 import '../../services/multiplayer_service.dart';
 import '../../models/guess_result.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/single_player_service.dart';
 
 class MainScreen extends StatefulWidget {
   final bool fromContainer;
@@ -56,6 +57,16 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateTimeLeft();
     });
+
+    if (_gameCode == null) {
+      final savedGuesses = await SinglePlayerService.loadGuesses();
+      if (mounted) {
+        setState(() {
+          _guesses.addAll(savedGuesses);
+          _guesses.sort((a, b) => b.similarity.compareTo(a.similarity));
+        });
+      }
+    }
 
     await _checkForActiveGame();
 
@@ -135,9 +146,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     final difference = _wordExpiryTime!.difference(now);
 
     if (difference.isNegative) {
-      _updateCurrentWord();
       setState(() {
         _timeLeft = '00:00:00';
+      });
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _updateCurrentWord();
       });
     } else {
       setState(() {
@@ -178,13 +191,20 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           isCorrect: guess == currentWord,
         );
 
-        if (!_guesses.any((g) => g.word == guess)) {
-          _guesses.insert(0, guessResult);
-        }
-
+        _guesses.insert(0, guessResult);
         setState(() {
           _lastGuessResult = guessResult;
         });
+        
+        if (_gameCode == null) {
+          await SinglePlayerService.addGuess(guessResult);
+        } else {
+          await MultiplayerService.addGuess(
+            _gameCode!,
+            AuthService.currentUser?.uid ?? '',
+            guessResult,
+          );
+        }
 
         if (guess == currentWord) {
           final isAlreadyWinner = _gameSession?.winners.contains(
@@ -522,6 +542,14 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                           ElevatedButton(
                             onPressed: () async {
                               if (_gameCode != null) {
+                                if (_guesses.isNotEmpty) {
+                                  for (final guess in _guesses) {
+                                    if (!guess.isCorrect || (guess.isCorrect && _gameSession!.winners.contains(AuthService.currentUser?.uid))) {
+                                      await SinglePlayerService.addGuess(guess);
+                                    }
+                                  }
+                                }
+                                
                                 await MultiplayerService.leaveGame(_gameCode!);
                                 if (mounted) {
                                   setState(() {
@@ -561,8 +589,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Future<void> _createMultiplayerGame(BuildContext context,
-      StateSetter setDialogState) async {
+  Future<void> _createMultiplayerGame(BuildContext context, StateSetter setDialogState) async {
     final userId = AuthService.currentUser?.uid;
     if (userId == null) return;
 
@@ -570,14 +597,27 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       final session = await MultiplayerService.createGameSession(userId);
       if (!mounted) return;
 
-      if (_guesses.isNotEmpty) {
-        for (final guess in _guesses) {
+      final savedGuesses = await SinglePlayerService.loadGuesses();
+      if (savedGuesses.isNotEmpty) {
+        
+        for (final guess in savedGuesses) {
           if (!guess.isCorrect) {
-            await MultiplayerService.addGuess(
-              session.code,
-              userId,
-              guess,
-            );
+            
+            try {
+              await MultiplayerService.addGuess(
+                session.code,
+                userId,
+                GuessResult(
+                  word: guess.word,
+                  similarity: guess.similarity,
+                  isCorrect: false,
+                ),
+              );
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error adding guess to session: $e');
+              }
+            }
           }
         }
       }
@@ -585,7 +625,14 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       setState(() {
         _gameCode = session.code;
         _gameSession = session;
+        _guesses.clear();
+        for (final guess in savedGuesses) {
+          if (!guess.isCorrect) {
+            _guesses.add(guess);
+          }
+        }
       });
+      
       _subscribeToGameSession();
 
       setDialogState(() {
@@ -617,15 +664,14 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       if (!mounted) return;
 
       if (session != null) {
-        if (_guesses.isNotEmpty) {
-          for (final guess in _guesses) {
-            if (!guess.isCorrect) {
-              await MultiplayerService.addGuess(
-                code,
-                userId,
-                guess,
-              );
-            }
+        final savedGuesses = await SinglePlayerService.loadGuesses();
+        for (final guess in savedGuesses) {
+          if (!guess.isCorrect) {
+            await MultiplayerService.addGuess(
+              code,
+              userId,
+              guess,
+            );
           }
         }
 
@@ -734,21 +780,20 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     try {
       final wordData = await WordEmbeddingService.instance.getCurrentWord();
       if (wordData != null && mounted) {
-        setState(() {
-          final newWord = wordData['word'];
-          if (currentWord != newWord) {
+        final newWord = wordData['word'];
+        final timeRemaining = Duration(milliseconds: wordData['timeRemaining']);
+        
+        if (mounted) {
+          setState(() {
+            currentWord = newWord;
+            _wordExpiryTime = DateTime.now().add(timeRemaining);
+            if (_timeLeft == '00:00:00') {
+              _timeLeft = DailyTimerService.formatDuration(timeRemaining);
+            }
             _guesses.clear();
             _lastGuessResult = null;
-            
-            if (_gameCode != null) {
-              MultiplayerService.clearAllGuesses(_gameCode!);
-            }
-          }
-
-          currentWord = newWord;
-          final timeRemaining = Duration(milliseconds: wordData['timeRemaining']);
-          _wordExpiryTime = DateTime.now().add(timeRemaining);
-        });
+          });
+        }
       }
     } catch (e) {
       if (kDebugMode) {

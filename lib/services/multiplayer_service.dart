@@ -180,16 +180,4 @@ class MultiplayerService {
       'lastUpdate': FieldValue.serverTimestamp(),
     });
   }
-
-  static Future<void> clearAllGuesses(String code) async {
-    final gameDoc = await _db.collection('game_sessions').doc(code).get();
-    if (!gameDoc.exists) return;
-
-    await _db.collection('game_sessions').doc(code).update({
-      'playerGuesses': {},
-      'wordFound': false,
-      'winners': [],
-      'lastUpdate': FieldValue.serverTimestamp(),
-    });
-  }
 } 
