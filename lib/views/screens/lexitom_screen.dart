@@ -41,7 +41,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   String? currentWord;
   DateTime? _wordExpiryTime;
   bool _showRevealButton = false;
-  String? _lastSubmittedWord;
+  final List<String> _lastSubmittedWords = [];
+  int _currentSubmittedWordIndex = 0;
   List<Map<String, dynamic>> _lastWords = [];
 
   @override
@@ -204,12 +205,18 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     final guess = _cleanWord(_controller.text);
     if (guess.isEmpty) return;
 
-    _lastSubmittedWord = guess;
+    setState(() {
+        _lastSubmittedWords.insert(0, guess);
+        if (_lastSubmittedWords.length > 10) {
+            _lastSubmittedWords.removeLast();
+        }
+        _currentSubmittedWordIndex = 0;
+    });
     _controller.clear();
     FocusScope.of(context).requestFocus(_focusNode);
 
     setState(() {
-      _isLoading = true;
+        _isLoading = true;
     });
 
     try {
@@ -843,8 +850,16 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   }
 
   void _retrieveLastGuess() {
-    if (_lastSubmittedWord != null) {
-      _controller.text = _lastSubmittedWord!;
+    if (_lastSubmittedWords.isNotEmpty) {
+        _controller.text = _lastSubmittedWords[_currentSubmittedWordIndex];
+
+        _currentSubmittedWordIndex++;
+        
+        if (_currentSubmittedWordIndex >= _lastSubmittedWords.length) {
+            _currentSubmittedWordIndex = _lastSubmittedWords.length - 1;
+        }
+
+        setState(() {});
     }
   }
 
