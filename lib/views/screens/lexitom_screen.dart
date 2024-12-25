@@ -13,6 +13,7 @@ import '../../services/multiplayer_service.dart';
 import '../../models/guess_result.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/single_player_service.dart';
+import 'package:intl/intl.dart';
 
 class MainScreen extends StatefulWidget {
   final bool fromContainer;
@@ -41,6 +42,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   DateTime? _wordExpiryTime;
   bool _showRevealButton = false;
   String? _lastSubmittedWord;
+  List<Map<String, dynamic>> _lastWords = [];
 
   @override
   bool get wantKeepAlive => true;
@@ -49,6 +51,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   void initState() {
     super.initState();
     _initializeApp();
+    _fetchLastWords();
   }
 
   Future<void> _initializeApp() async {
@@ -129,6 +132,36 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     }
   }
 
+  Future<void> _fetchLastWords() async {
+    try {
+        final gameDoc = await FirebaseFirestore.instance
+            .collection('game')
+            .doc('last_words')
+            .get();
+
+        if (!gameDoc.exists) return;
+
+        final lastWords = gameDoc.data()?['last_words'] as List<dynamic>? ?? [];
+        
+        _lastWords = lastWords.map((wordData) => {
+            'word': wordData['word'],
+            'timestamp': DateTime.fromMillisecondsSinceEpoch(wordData['timestamp']),
+        }).toList();
+
+        _lastWords.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
+        
+        if (_lastWords.length > 7) {
+            _lastWords = _lastWords.sublist(0, 7);
+        }
+
+        setState(() {});
+    } catch (e) {
+        if (kDebugMode) {
+            print('Error fetching last words: $e');
+        }
+    }
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -151,6 +184,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       });
       Future.delayed(const Duration(milliseconds: 100), () {
         _updateCurrentWord();
+        _fetchLastWords();
       });
     } else {
       setState(() {
@@ -902,42 +936,37 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
-                      children: List.generate(
-                        500,
-                            (index) =>
-                            Container(
-                              margin: const EdgeInsets.only(right: 12),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2A2A2A),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: pastelYellow.withOpacity(0.3)),
-                              ),
-                              child: Column(
-                                children: [
-                                  Text(
-                                    'Jour ${index + 1}',
-                                    style: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 12,
-                                      fontFamily: 'Poppins',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Fleur',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
+                      children: _lastWords.map((wordData) => Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A2A),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: pastelYellow.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Mot du ${DateFormat('dd/MM/yyyy').format(wordData['timestamp'])}',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 12,
+                                fontFamily: 'Poppins',
                               ),
                             ),
-                      ),
+                            const SizedBox(height: 4),
+                            Text(
+                              wordData['word'],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontFamily: 'Poppins',
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )).toList(),
                     ),
                   ),
                 ],
