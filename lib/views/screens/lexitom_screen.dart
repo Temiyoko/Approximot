@@ -989,6 +989,16 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     }
   }
 
+  String _getTemperatureEmoji(double score) {
+    if (score < 0) {
+      return '🧊'; // Très froid - glaçon
+    } else if (score >= 0 && score < 30) {
+      return '❄️'; // Froid
+    } else {
+      return '🔥'; // Chaud
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -1280,16 +1290,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                     ),
                   ),
                   Text(
-                    '${(_lastGuessResult!.similarity * 100).toStringAsFixed(
-                        1)}%',
+                    '${(_lastGuessResult!.similarity * 100).toStringAsFixed(1)}° ${_getTemperatureEmoji(_lastGuessResult!.similarity * 100)}',
                     style: TextStyle(
-                      color: _lastGuessResult!.isCorrect
-                          ? Colors.green
-                          : Colors
-                          .white,
-                      fontSize: 18,
-                      fontFamily: 'Poppins',
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                 ],
@@ -1388,14 +1393,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                 ),
                               ),
                               Text(
-                                '${(guess.similarity * 100).toStringAsFixed(
-                                    1)}%',
+                                '${(guess.similarity * 100).toStringAsFixed(1)}° ${_getTemperatureEmoji(guess.similarity * 100)}',
                                 style: TextStyle(
-                                  color: guess.isCorrect ? Colors.green : Colors
-                                      .white,
                                   fontSize: 16,
-                                  fontFamily: 'Poppins',
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
                               ),
                             ],
