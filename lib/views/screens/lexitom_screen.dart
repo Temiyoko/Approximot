@@ -995,8 +995,89 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     } else if (score >= 0 && score < 25) {
       return '❄️'; // Froid
     } else {
-      return '🔥'; // Chaud
+      return '����'; // Chaud
     }
+  }
+
+  void _showMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF2A2A2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[600],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Text(
+                  'Historique des mots',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _lastWords.length,
+                  itemBuilder: (context, index) {
+                    final wordData = _lastWords[index];
+                    return ListTile(
+                      title: Text(
+                        wordData['word'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      subtitle: Text(
+                        DateFormat('dd/MM/yyyy').format(wordData['timestamp']),
+                        style: TextStyle(
+                          color: Colors.grey[400],
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                      onTap: () => _fetchWordWiki(wordData['word']),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Stream<int> _getPlayersFoundCount() {
+    return FirebaseFirestore.instance
+        .collection('game_sessions')
+        .where('currentWord', isEqualTo: currentWord)
+        .snapshots()
+        .map((snapshot) {
+          final Set<String> uniquePlayers = {};
+          for (var doc in snapshot.docs) {
+            final winners = List<String>.from(doc.data()['winners'] ?? []);
+            uniquePlayers.addAll(winners);
+          }
+          return uniquePlayers.length;
+        });
   }
 
   @override
@@ -1057,9 +1138,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             padding: const EdgeInsets.only(top: 50.0),
             child: IconButton(
               icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () {
-                // Show menu options
-              },
+              onPressed: () => _showMenu(context),
               tooltip: 'Menu',
             ),
           ),
@@ -1072,10 +1151,10 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             Container(
               padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Text(
-                    'Mots Précédents',
+                    'Mot d\'hier',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -1084,13 +1163,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                     ),
                   ),
                   const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _lastWords.map((wordData) => GestureDetector(
-                        onTap: () => _fetchWordWiki(wordData['word']),
+                  if (_lastWords.isNotEmpty)
+                    Center(
+                      child: GestureDetector(
+                        onTap: () => _fetchWordWiki(_lastWords.first['word']),
                         child: Container(
-                          margin: const EdgeInsets.only(right: 12),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: const Color(0xFF2A2A2A),
@@ -1100,7 +1177,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                           child: Column(
                             children: [
                               Text(
-                                'Mot du ${DateFormat('dd/MM/yyyy').format(wordData['timestamp'])}',
+                                'Mot du ${DateFormat('dd/MM/yyyy').format(_lastWords.first['timestamp'])}',
                                 style: TextStyle(
                                   color: Colors.grey[400],
                                   fontSize: 12,
@@ -1109,7 +1186,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                wordData['word'],
+                                _lastWords.first['word'],
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -1120,9 +1197,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                             ],
                           ),
                         ),
-                      )).toList(),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -1157,6 +1233,34 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(width: 10),
+                  StreamBuilder<int>(
+                    stream: _getPlayersFoundCount(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const SizedBox();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A2A),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.people_outline, color: Colors.white, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${snapshot.data} ${snapshot.data == 1 ? 'joueur a trouvé' : 'joueurs ont trouvé'}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
