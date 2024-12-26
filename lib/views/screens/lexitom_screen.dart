@@ -992,7 +992,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   String _getTemperatureEmoji(double score) {
     if (score < 0) {
       return '🧊'; // Très froid - glaçon
-    } else if (score >= 0 && score < 30) {
+    } else if (score >= 0 && score < 25) {
       return '❄️'; // Froid
     } else {
       return '🔥'; // Chaud
