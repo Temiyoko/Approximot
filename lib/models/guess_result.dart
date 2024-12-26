@@ -17,7 +17,7 @@ class GuessResult {
 
   factory GuessResult.fromJson(Map<String, dynamic> json) => GuessResult(
     word: json['word'] as String,
-    similarity: json['similarity'] as double,
+    similarity: (json['similarity'] is int) ? (json['similarity'] as int).toDouble() : json['similarity'] as double,
     isCorrect: json['isCorrect'] as bool,
   );
 } 

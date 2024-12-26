@@ -49,6 +49,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   int _currentSubmittedWordIndex = 0;
   List<Map<String, dynamic>> _lastWords = [];
   final BehaviorSubject<String?> _currentWordSubject = BehaviorSubject<String?>();
+  bool _hasShownWordFoundDialog = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -899,7 +900,9 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
           if (session.wordFound &&
               session.winners.isNotEmpty &&
-              !session.winners.contains(AuthService.currentUser?.uid)) {
+              !session.winners.contains(AuthService.currentUser?.uid) &&
+              !_hasShownWordFoundDialog) {
+            _hasShownWordFoundDialog = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
                     showDialog(
@@ -971,6 +974,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             _gameSession = null;
             _gameCode = null;
             _showRevealButton = false;
+            _hasShownWordFoundDialog = false;
           });
         }
       });
@@ -981,6 +985,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     try {
       final wordData = await WordEmbeddingService.instance.getCurrentWord();
       if (wordData != null && mounted) {
+        _hasShownWordFoundDialog = false;
         final newWord = wordData['word'];
         final timeRemaining = Duration(milliseconds: wordData['timeRemaining']);
         
