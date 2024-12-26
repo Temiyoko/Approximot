@@ -7,25 +7,20 @@ class AuthService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // Current user getter
   static User? get currentUser => _auth.currentUser;
 
-  // Auth state changes stream
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Create or update user document
   static Future<void> _updateUserData(User user) async {
     await _db.collection('users').doc(user.uid).set({
-      'email': user.email,
+      'activeGame': null,
       'displayName': user.displayName ?? 'User',
-      'photoURL': user.photoURL,
+      'email': user.email,
       'lastSeen': FieldValue.serverTimestamp(),
-      'activeGames': [],
-      'createdAt': FieldValue.serverTimestamp(),
+      'photoURL': user.photoURL,
     }, SetOptions(merge: true));
   }
 
-  // Google Sign In
   static Future<UserCredential?> signInWithGoogle() async {
     try {
       await signOut();
@@ -49,7 +44,6 @@ class AuthService {
     }
   }
 
-  // Email Sign In
   static Future<UserCredential> signInWithEmail(String email, String password) async {
     try {
       final credential = await _auth.signInWithEmailAndPassword(
@@ -67,23 +61,20 @@ class AuthService {
     }
   }
 
-  // Email Sign Up
   static Future<UserCredential> createUserWithEmail(String email, String password) async {
     final userCredential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
-    await _updateUserData(userCredential.user!);
+    await createUserDocument(userCredential.user!);
     return userCredential;
   }
 
-  // Sign Out
   static Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
-  // Update user's last seen
   static Future<void> updateUserLastSeen() async {
     if (currentUser != null) {
       await _db.collection('users').doc(currentUser!.uid).update({
@@ -93,16 +84,19 @@ class AuthService {
   }
 
   static Future<void> createUserDocument(User user) async {
-    final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userDoc = _db.collection('users').doc(user.uid);
     
-    // Only create if it doesn't exist
     final docSnapshot = await userDoc.get();
     if (!docSnapshot.exists) {
       await userDoc.set({
         'uid': user.uid,
-        'email': user.email,
+        'activeGame': null,
         'createdAt': FieldValue.serverTimestamp(),
-        'activeGames': [],
+        'displayName': user.displayName ?? 'User',
+        'email': user.email,
+        'lastSeen': FieldValue.serverTimestamp(),
+        'photoURL': user.photoURL,
+        'singlePlayerGuesses': null,
       });
     }
   }
