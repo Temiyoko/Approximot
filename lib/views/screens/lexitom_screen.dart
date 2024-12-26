@@ -995,7 +995,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     } else if (score >= 0 && score < 25) {
       return '❄️'; // Froid
     } else {
-      return '����'; // Chaud
+      return '🔥'; // Chaud
     }
   }
 
