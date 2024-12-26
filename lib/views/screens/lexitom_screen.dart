@@ -14,9 +14,10 @@ import '../../services/multiplayer_service.dart';
 import '../../models/guess_result.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/single_player_service.dart';
-import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import '../widgets/word_info_dialog.dart';
+import '../widgets/word_history_widget.dart';
+import 'package:rxdart/rxdart.dart';
 
 class MainScreen extends StatefulWidget {
   final bool fromContainer;
@@ -47,6 +48,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   final List<String> _lastSubmittedWords = [];
   int _currentSubmittedWordIndex = 0;
   List<Map<String, dynamic>> _lastWords = [];
+  final BehaviorSubject<String?> _currentWordSubject = BehaviorSubject<String?>();
 
   @override
   bool get wantKeepAlive => true;
@@ -154,10 +156,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
         _lastWords.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
         
-        if (_lastWords.length > 7) {
-            _lastWords = _lastWords.sublist(0, 7);
-        }
-
         setState(() {});
     } catch (e) {
         if (kDebugMode) {
@@ -173,6 +171,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     _gameSubscription?.cancel();
     _codeController.dispose();
     _focusNode.dispose();
+    _currentWordSubject.close();
     super.dispose();
   }
 
@@ -980,6 +979,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             _guesses.clear();
             _lastGuessResult = null;
           });
+          _currentWordSubject.add(newWord);
         }
       }
     } catch (e) {
@@ -1018,10 +1018,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
     if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
-        if (kDebugMode) {
-            print('API Response: $data');
-        }
 
         final directLink = data['direct_link'] ?? '';
         final nature = List<String>.from(data['nature'] ?? []);
@@ -1070,11 +1066,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
   String _getTemperatureEmoji(double score) {
     if (score < 0) {
-      return '🧊'; // Très froid - glaçon
+      return '🧊';
     } else if (score >= 0 && score < 25) {
-      return '❄️'; // Froid
+      return '❄️';
     } else {
-      return '🔥'; // Chaud
+      return '🔥';
     }
   }
 
@@ -1086,59 +1082,10 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[600],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: Text(
-                  'Historique des mots',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _lastWords.length,
-                  itemBuilder: (context, index) {
-                    final wordData = _lastWords[index];
-                    return ListTile(
-                      title: Text(
-                        wordData['word'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                      subtitle: Text(
-                        DateFormat('dd/MM/yyyy').format(wordData['timestamp']),
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                      onTap: () => _fetchWordWiki(wordData['word']),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+        return WordHistoryWidget(
+          lastWords: _lastWords,
+          fetchWordWiki: _fetchWordWiki,
+          currentWordStream: _currentWordSubject.stream,
         );
       },
     );
@@ -1244,27 +1191,18 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                   const SizedBox(height: 12),
                   if (_lastWords.isNotEmpty)
                     Center(
-                      child: GestureDetector(
-                        onTap: () => _fetchWordWiki(_lastWords.first['word']),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: pastelYellow.withOpacity(0.3)),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                'Mot du ${DateFormat('dd/MM/yyyy').format(_lastWords.first['timestamp'])}',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 12,
-                                  fontFamily: 'Poppins',
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A2A),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: pastelYellow.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () => _fetchWordWiki(_lastWords.first['word']),
+                              child: Text(
                                 _lastWords.first['word'],
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -1273,8 +1211,17 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Voir les mots les plus proches',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 12,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1550,24 +1497,24 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                       ..sort((a, b) => b.similarity.compareTo(a.similarity));
                     final guess = sortedGuesses[index];
 
-                    return GestureDetector(
-                      onTap: () => _fetchWordWiki(guess.word),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: pastelYellow.withOpacity(0.1),
-                              width: 1,
-                            ),
+                    return Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: pastelYellow.withOpacity(0.1),
+                            width: 1,
                           ),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            GestureDetector(
+                              onTap: () => _fetchWordWiki(guess.word),
+                              child: Text(
                                 guess.word,
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -1575,16 +1522,16 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                   fontFamily: 'Poppins',
                                 ),
                               ),
-                              Text(
-                                '${(guess.similarity * 100).toStringAsFixed(1)}° ${_getTemperatureEmoji(guess.similarity * 100)}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                            ),
+                            Text(
+                              '${(guess.similarity * 100).toStringAsFixed(1)}° ${_getTemperatureEmoji(guess.similarity * 100)}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     );
