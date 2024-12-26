@@ -264,32 +264,72 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             final dialogContext = context;
 
             if (mounted) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  showDialog(
-                    context: dialogContext,
-                    barrierDismissible: false,
-                    builder: (BuildContext dialogContext) {
-                      return AlertDialog(
-                        title: const Text('Félicitations !'),
-                        content: Text('Vous avez trouvé le mot : $currentWord'),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(dialogContext);
-                              if (mounted) {
-                                FocusScope.of(dialogContext).requestFocus(
-                                    _focusNode);
-                              }
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                        showDialog(
+                            context: dialogContext,
+                            builder: (context) {
+                                return Dialog(
+                                    backgroundColor: const Color(0xFF303030),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Padding(
+                                        padding: const EdgeInsets.all(24.0),
+                                        child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                                const Text(
+                                                    'Félicitations !',
+                                                    style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 22,
+                                                        fontWeight: FontWeight.bold,
+                                                        fontFamily: 'Poppins',
+                                                    ),
+                                                ),
+                                                const SizedBox(height: 20),
+                                                Text(
+                                                    'Vous avez trouvé le mot : $currentWord',
+                                                    style: const TextStyle(
+                                                        color: Colors.white70,
+                                                        fontSize: 16,
+                                                        height: 1.3,
+                                                        fontFamily: 'Poppins',
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 20),
+                                                TextButton(
+                                                    onPressed: () {
+                                                        Navigator.pop(dialogContext);
+                                                        if (mounted) {
+                                                            FocusScope.of(dialogContext).requestFocus(
+                                                                _focusNode);
+                                                        }
+                                                    },
+                                                    style: TextButton.styleFrom(
+                                                        backgroundColor: pastelYellow,
+                                                        shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(30),
+                                                        ),
+                                                    ),
+                                                    child: const Text(
+                                                        'OK',
+                                                        style: TextStyle(
+                                                            color: Color(0xFF303030),
+                                                            fontFamily: 'Poppins',
+                                                        ),
+                                                    ),
+                                                ),
+                                            ],
+                                        ),
+                                    ),
+                                );
                             },
-                            child: const Text('OK'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                }
-              });
+                        );
+                    }
+                });
             }
           }
         } else {
@@ -821,12 +861,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   void _subscribeToGameSession() {
     _gameSubscription?.cancel();
     if (_gameCode != null) {
-      _gameSubscription = MultiplayerService.watchGameSession(_gameCode!)
-          .listen((session) {
+      _gameSubscription = MultiplayerService.watchGameSession(_gameCode!).listen((session) {
         if (mounted && session != null) {
           setState(() {
             _gameSession = session;
-            
+
             _showRevealButton = session.wordFound && 
                 session.winners.isNotEmpty &&
                 !session.winners.contains(AuthService.currentUser?.uid) &&
@@ -836,7 +875,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             
             for (final playerGuesses in session.playerGuesses.values) {
               for (final guess in playerGuesses) {
-                if (!currentWords.contains(guess.word)) {
+                if (!guess.isCorrect && !currentWords.contains(guess.word)) {
                   _guesses.add(guess);
                   currentWords.add(guess.word);
                 }
@@ -848,29 +887,69 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               session.winners.isNotEmpty &&
               !session.winners.contains(AuthService.currentUser?.uid)) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (BuildContext dialogContext) {
-                    return AlertDialog(
-                      title: const Text('Mot trouvé !'),
-                      content: Text('Un joueur a trouvé le mot secret !',),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            if (mounted) {
-                              FocusScope.of(context).requestFocus(_focusNode);
-                            }
-                          },
-                          child: const Text('OK'),
-                        ),
-                      ],
+                if (mounted) {
+                    showDialog(
+                        context: context,
+                        builder: (context) {
+                            return Dialog(
+                                backgroundColor: const Color(0xFF303030),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Padding(
+                                    padding: const EdgeInsets.all(24.0),
+                                    child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                            const Text(
+                                                'Mot trouvé !',
+                                                style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 22,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontFamily: 'Poppins',
+                                                ),
+                                            ),
+                                            const SizedBox(height: 20),
+                                            const Text(
+                                                'Un joueur a trouvé le mot secret !',
+                                                style: TextStyle(
+                                                    color: Colors.white70,
+                                                    fontSize: 16,
+                                                    height: 1.3,
+                                                    fontFamily: 'Poppins',
+                                                ),
+                                                textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 20),
+                                            TextButton(
+                                                onPressed: () {
+                                                    Navigator.pop(context);
+                                                    if (mounted) {
+                                                        FocusScope.of(context).requestFocus(_focusNode);
+                                                    }
+                                                },
+                                                style: TextButton.styleFrom(
+                                                    backgroundColor: pastelYellow,
+                                                    shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(30),
+                                                    ),
+                                                ),
+                                                child: const Text(
+                                                    'OK',
+                                                    style: TextStyle(
+                                                        color: Color(0xFF303030),
+                                                        fontFamily: 'Poppins',
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            );
+                        },
                     );
-                  },
-                );
-              }
+                }
             });
           }
         } else if (mounted && session == null) {
@@ -1204,65 +1283,65 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
             ),
 
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A2A),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.timer_outlined, color: Colors.white,
-                            size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          currentWord != null
-                              ? 'Prochain mot dans $_timeLeft'
-                              : 'Chargement...',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  StreamBuilder<int>(
-                    stream: _getPlayersFoundCount(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const SizedBox();
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.people_outline, color: Colors.white, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${snapshot.data} ${snapshot.data == 1 ? 'joueur a trouvé' : 'joueurs ont trouvé'}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontFamily: 'Poppins',
-                              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            currentWord != null
+                                ? 'Prochain mot dans $_timeLeft'
+                                : 'Chargement...',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontFamily: 'Poppins',
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    StreamBuilder<int>(
+                      stream: _getPlayersFoundCount(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const SizedBox();
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.people_outline, color: Colors.white, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${snapshot.data} ${snapshot.data == 1 ? 'joueur' : 'joueurs'}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
 
