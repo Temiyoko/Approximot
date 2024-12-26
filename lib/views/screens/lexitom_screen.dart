@@ -398,6 +398,68 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   void _showMultiplayerDialog() {
     _joinError = null;
 
+    if (AuthService.currentUser == null) {
+        showDialog(
+            context: context,
+            builder: (context) {
+                return Dialog(
+                    backgroundColor: const Color(0xFF303030),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                                const Text(
+                                    'Accès refusé',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'Poppins',
+                                    ),
+                                ),
+                                const SizedBox(height: 20),
+                                const Text(
+                                    'Vous devez être connecté pour accéder à cette fonctionnalité.',
+                                    style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        height: 1.3,
+                                        fontFamily: 'Poppins',
+                                    ),
+                                    textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 20),
+                                TextButton(
+                                    onPressed: () {
+                                        Navigator.of(context).pop();
+                                    },
+                                    style: TextButton.styleFrom(
+                                        backgroundColor: pastelYellow,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(30),
+                                        ),
+                                    ),
+                                    child: const Text(
+                                        'OK',
+                                        style: TextStyle(
+                                            color: Color(0xFF303030),
+                                            fontFamily: 'Poppins',
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                );
+            },
+        );
+        return;
+    }
+
     showDialog(
       context: context,
       builder: (dialogContext) =>
