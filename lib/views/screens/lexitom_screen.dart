@@ -152,6 +152,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         _lastWords = lastWords.map((wordData) => {
             'word': wordData['word'],
             'timestamp': DateTime.fromMillisecondsSinceEpoch(wordData['timestamp']),
+            'found_count': wordData['found_count'] ?? 0,
         }).toList();
 
         _lastWords.sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
@@ -233,13 +234,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           similarity: similarity,
           isCorrect: guess == currentWord,
         );
-
-        if (!_guesses.any((g) => g.word == guess)) {
-          _guesses.insert(0, guessResult);
-        }
-        setState(() {
-          _lastGuessResult = guessResult;
-        });
         
         if (_gameCode == null) {
           await SinglePlayerService.addGuess(guessResult);
@@ -251,9 +245,30 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           );
         }
 
+        final isAlreadyWinner = (_gameSession?.winners.contains(
+            AuthService.currentUser?.uid) ?? false) ||
+            _guesses.any((g) => g.isCorrect);
+
         if (guess == currentWord) {
-          final isAlreadyWinner = _gameSession?.winners.contains(
-              AuthService.currentUser?.uid) ?? false;
+          if (!isAlreadyWinner) {
+            try {
+              await http.post(
+                Uri.parse('${WordEmbeddingService.baseUrl}/increment-found-count'),
+              );
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error incrementing found count: $e');
+              }
+            }
+          }
+
+          if (!_guesses.any((g) => g.word == guess)) {
+            _guesses.insert(0, guessResult);
+          }
+          setState(() {
+            _lastGuessResult = guessResult;
+          });
+
 
           if (_gameCode != null && !isAlreadyWinner) {
             await MultiplayerService.notifyWordFound(
@@ -1093,16 +1108,12 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
   Stream<int> _getPlayersFoundCount() {
     return FirebaseFirestore.instance
-        .collection('game_sessions')
-        .where('currentWord', isEqualTo: currentWord)
+        .collection('game')
+        .doc('currentWord')
         .snapshots()
         .map((snapshot) {
-          final Set<String> uniquePlayers = {};
-          for (var doc in snapshot.docs) {
-            final winners = List<String>.from(doc.data()['winners'] ?? []);
-            uniquePlayers.addAll(winners);
-          }
-          return uniquePlayers.length;
+          if (!snapshot.exists) return 0;
+          return snapshot.data()?['found_count'] ?? 0;
         });
   }
 
@@ -1420,7 +1431,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                     ),
                   ),
                   Text(
-                    '${(_lastGuessResult!.similarity * 100).toStringAsFixed(1)}° ${_getTemperatureEmoji(_lastGuessResult!.similarity * 100)}',
+                    '${(_lastGuessResult!.similarity * 100).toStringAsFixed(2)}° ${_getTemperatureEmoji(_lastGuessResult!.similarity * 100)}',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1524,7 +1535,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                               ),
                             ),
                             Text(
-                              '${(guess.similarity * 100).toStringAsFixed(1)}° ${_getTemperatureEmoji(guess.similarity * 100)}',
+                              '${(guess.similarity * 100).toStringAsFixed(2)}° ${_getTemperatureEmoji(guess.similarity * 100)}',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

@@ -68,20 +68,32 @@ class WordHistoryWidget extends StatelessWidget {
                       elevation: 4,
                       color: const Color(0xFF303030),
                       child: ListTile(
-                        title: GestureDetector(
-                          onTap: () => fetchWordWiki(wordData['word']),
-                          child: Text(
-                            wordData['word'],
-                            style: const TextStyle(
-                              color: Color(0xFFF1E173),
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.w600,
+                        title: Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => fetchWordWiki(wordData['word']),
+                              child: Text(
+                                wordData['word'],
+                                style: const TextStyle(
+                                  color: Color(0xFFF1E173),
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
-                          ),
+                            const Spacer(),
+                            Text(
+                              DateFormat('dd/MM/yyyy').format(wordData['timestamp']),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
                         ),
                         subtitle: Text(
-                          DateFormat('dd/MM/yyyy').format(wordData['timestamp']),
-                          style: TextStyle(
+                          'Trouvé ${wordData['found_count'] ?? 0} fois',
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontFamily: 'Poppins',
                           ),
