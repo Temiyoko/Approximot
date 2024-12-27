@@ -163,7 +163,7 @@ def trigger_word_update():
         }), 500
 
 FILE_ID = "1YcA6pB5Y138X0Chk66fv_eYKGLzW0N2c"
-MODEL_PATH = "modele.bin"
+MODEL_PATH = "model.bin"
 
 def get_model_path():
     """Get the path to the model file"""
