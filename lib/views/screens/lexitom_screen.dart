@@ -235,6 +235,19 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           similarity: similarity,
           isCorrect: guess == currentWord,
         );
+
+        if (!_guesses.any((g) => g.word == guess)) {
+          _guesses.insert(0, guessResult);
+        }
+
+        setState(() {
+          _lastGuessResult = guessResult;
+        });
+
+        final userGuesses = await SinglePlayerService.loadGuesses();
+
+        final isAlreadyWinner = (_gameSession?.winners.contains(
+            AuthService.currentUser?.uid) ?? false) || userGuesses.any((g) => g.isCorrect);
         
         if (_gameCode == null) {
           await SinglePlayerService.addGuess(guessResult);
@@ -246,11 +259,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           );
         }
 
-        final isAlreadyWinner = (_gameSession?.winners.contains(
-            AuthService.currentUser?.uid) ?? false) ||
-            _guesses.any((g) => g.isCorrect);
-
-        if (guess == currentWord) {
+        if (guessResult.isCorrect) {
           if (!isAlreadyWinner) {
             try {
               await http.post(
@@ -262,14 +271,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
               }
             }
           }
-
-          if (!_guesses.any((g) => g.word == guess)) {
-            _guesses.insert(0, guessResult);
-          }
-          setState(() {
-            _lastGuessResult = guessResult;
-          });
-
 
           if (_gameCode != null && !isAlreadyWinner) {
             await MultiplayerService.notifyWordFound(
