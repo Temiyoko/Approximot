@@ -248,114 +248,94 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(110),
-        child: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          flexibleSpace: Padding(
-            padding: const EdgeInsets.only(top: 15),
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: const Text(
-                  'Paramètres',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF1A1A1A),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(110),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: Padding(
+              padding: const EdgeInsets.only(top: 15),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 16),
+                  child: const Text(
+                    'Paramètres',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.only(top: 20),
-        children: [
-          _buildSettingsSection(
-            'Compte',
-            [
-              _buildSettingsTile(
-                title: _getUserInfo(),
-                icon: Icons.person,
-                iconColor: const Color(0xFFFECC79),
-                onTap: FirebaseAuth.instance.currentUser != null 
-                  ? () => _showComingSoon(context)
-                  : null,
-                trailing: FirebaseAuth.instance.currentUser != null
-                  ? const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16)
-                  : null,
-              ),
-            ],
-          ),
-          _buildSettingsSection(
-            'Jeux',
-            [
-              _buildSettingsTile(
-                title: 'Règles des jeux',
-                icon: Icons.rule,
-                iconColor: const Color(0xFFEDA95D),
-                onTap: () => _showGameRules(context),
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-              ),
-            ],
-          ),
-          _buildSettingsSection(
-            'Application',
-            [
-              _buildSettingsTile(
-                title: 'À propos',
-                icon: Icons.info,
-                iconColor: const Color(0xFFD37D3A),
-                onTap: () => _showAboutApp(context),
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.1),
-            child: ElevatedButton(
-              onPressed: () => _signOut(context),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: const Color(0xFF303030),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+        body: ListView(
+          padding: const EdgeInsets.only(top: 20),
+          children: [
+            _buildSettingsSection(
+              'Compte',
+              [
+                _buildSettingsTile(
+                  title: _getUserInfo(),
+                  icon: Icons.person,
+                  iconColor: const Color(0xFFFECC79),
+                  onTap: FirebaseAuth.instance.currentUser != null 
+                    ? () => _showComingSoon(context)
+                    : null,
+                  trailing: FirebaseAuth.instance.currentUser != null
+                    ? const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16)
+                    : null,
                 ),
-                elevation: 6,
-                minimumSize: Size(MediaQuery.of(context).size.width * 0.8, 48),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.logout, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text(
-                    'Se déconnecter',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-          ),
-          const SizedBox(height: 20),
-          if (FirebaseAuth.instance.currentUser != null) ...[
+            _buildSettingsSection(
+              'Jeux',
+              [
+                _buildSettingsTile(
+                  title: 'Règles des jeux',
+                  icon: Icons.rule,
+                  iconColor: const Color(0xFFEDA95D),
+                  onTap: () {
+                    FocusScope.of(context).unfocus();
+                    _showGameRules(context);
+                  },
+                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                ),
+              ],
+            ),
+            _buildSettingsSection(
+              'Application',
+              [
+                _buildSettingsTile(
+                  title: 'À propos',
+                  icon: Icons.info,
+                  iconColor: const Color(0xFFD37D3A),
+                  onTap: () {
+                    FocusScope.of(context).unfocus();
+                    _showAboutApp(context);
+                  },
+                  trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.1),
               child: ElevatedButton(
-                onPressed: () => _showDeleteAccountConfirmation(context),
+                onPressed: () {
+                  FocusScope.of(context).unfocus();
+                  _signOut(context);
+                },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: const Color(0xFF303030),
@@ -368,12 +348,12 @@ class SettingsScreen extends StatelessWidget {
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.delete_forever, color: Colors.red),
+                    Icon(Icons.logout, color: Colors.white),
                     SizedBox(width: 10),
                     Text(
-                      'Supprimer le compte',
+                      'Se déconnecter',
                       style: TextStyle(
-                        color: Colors.red,
+                        color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w500,
                         fontFamily: 'Poppins',
@@ -384,28 +364,66 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-          ],
-        ],
-      ),
-      bottomNavigationBar: fromContainer ? null : CustomBottomBar(
-        currentIndex: 2,
-        onTap: (index) {
-          if (index != 2) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => 
-                  switch (index) {
-                    0 => const MainScreen(),
-                    1 => const WikiGameScreen(),
-                    _ => const SettingsScreen(),
+            if (FirebaseAuth.instance.currentUser != null) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.1),
+                child: ElevatedButton(
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    _showDeleteAccountConfirmation(context);
                   },
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF303030),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    elevation: 6,
+                    minimumSize: Size(MediaQuery.of(context).size.width * 0.8, 48),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.delete_forever, color: Colors.red),
+                      SizedBox(width: 10),
+                      Text(
+                        'Supprimer le compte',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            );
-          }
-        },
+              const SizedBox(height: 20),
+            ],
+          ],
+        ),
+        bottomNavigationBar: fromContainer ? null : CustomBottomBar(
+          currentIndex: 2,
+          onTap: (index) {
+            FocusScope.of(context).unfocus();
+            if (index != 2) {
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => 
+                    switch (index) {
+                      0 => const MainScreen(),
+                      1 => const WikiGameScreen(),
+                      _ => const SettingsScreen(),
+                    },
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }

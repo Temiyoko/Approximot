@@ -29,7 +29,6 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMixin {
   final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
   Timer? _timer;
   String _timeLeft = '';
   final Color pastelYellow = const Color(0xFFF1E173);
@@ -172,7 +171,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     _controller.dispose();
     _gameSubscription?.cancel();
     _codeController.dispose();
-    _focusNode.dispose();
     _currentWordSubject.close();
     super.dispose();
   }
@@ -217,7 +215,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         _currentSubmittedWordIndex = 0;
     });
     _controller.clear();
-    FocusScope.of(context).requestFocus(_focusNode);
 
     setState(() {
         _isLoading = true;
@@ -319,10 +316,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                                 TextButton(
                                                     onPressed: () {
                                                         Navigator.pop(dialogContext);
-                                                        if (mounted) {
-                                                            FocusScope.of(dialogContext).requestFocus(
-                                                                _focusNode);
-                                                        }
                                                     },
                                                     style: TextButton.styleFrom(
                                                         backgroundColor: pastelYellow,
@@ -943,9 +936,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                             TextButton(
                                                 onPressed: () {
                                                     Navigator.pop(context);
-                                                    if (mounted) {
-                                                        FocusScope.of(context).requestFocus(_focusNode);
-                                                    }
                                                 },
                                                 style: TextButton.styleFrom(
                                                     backgroundColor: pastelYellow,
@@ -1340,7 +1330,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                       ),
                       child: TextField(
                         controller: _controller,
-                        focusNode: _focusNode,
                         style: const TextStyle(color: Colors.white),
                         cursorColor: pastelYellow,
                         keyboardType: TextInputType.text,
