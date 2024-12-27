@@ -49,6 +49,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   List<Map<String, dynamic>> _lastWords = [];
   final BehaviorSubject<String?> _currentWordSubject = BehaviorSubject<String?>();
   bool _hasShownWordFoundDialog = false;
+  final FocusNode _focusNode = FocusNode();
 
   @override
   bool get wantKeepAlive => true;
@@ -172,6 +173,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     _gameSubscription?.cancel();
     _codeController.dispose();
     _currentWordSubject.close();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -376,6 +378,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+        _focusNode.requestFocus();
       }
     }
   }
@@ -1116,459 +1119,464 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        toolbarHeight: 100,
-        title: Padding(
-          padding: const EdgeInsets.only(top: 50.0),
-          child: const Text(
-            'LEXITOM',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.bold,
-              letterSpacing: 4,
-            ),
-          ),
-        ),
-        actions: [
-          Padding(
+    return GestureDetector(
+      onTap: () {
+        _focusNode.unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF1A1A1A),
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          toolbarHeight: 100,
+          title: Padding(
             padding: const EdgeInsets.only(top: 50.0),
-            child: IconButton(
-              icon: const Icon(Icons.group, color: Colors.white),
-              onPressed: _showMultiplayerDialog,
-              tooltip: 'Multijoueur',
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 50.0),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(30),
-                splashColor: pastelYellow.withOpacity(0.3),
-                highlightColor: pastelYellow.withOpacity(0.1),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  child: const Icon(
-                    Icons.help_outline,
-                    color: Colors.white,
-                  ),
-                ),
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _showGameRules(context);
-                },
+            child: const Text(
+              'LEXITOM',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.bold,
+                letterSpacing: 4,
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 50.0),
-            child: IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => _showMenu(context),
-              tooltip: 'Menu',
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(top: 50.0),
+              child: IconButton(
+                icon: const Icon(Icons.group, color: Colors.white),
+                onPressed: _showMultiplayerDialog,
+                tooltip: 'Multijoueur',
+              ),
             ),
-          ),
-        ],
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Mot d\'hier',
-                    style: TextStyle(
+            Padding(
+              padding: const EdgeInsets.only(top: 50.0),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(30),
+                  splashColor: pastelYellow.withOpacity(0.3),
+                  highlightColor: pastelYellow.withOpacity(0.1),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.help_outline,
                       color: Colors.white,
-                      fontSize: 18,
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  if (_lastWords.isNotEmpty)
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: pastelYellow.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          children: [
-                            GestureDetector(
-                              onTap: () => _fetchWordWiki(_lastWords.first['word']),
-                              child: Text(
-                                _lastWords.first['word'],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontFamily: 'Poppins',
-                                  fontWeight: FontWeight.w500,
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    _showGameRules(context);
+                  },
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 50.0),
+              child: IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () => _showMenu(context),
+                tooltip: 'Menu',
+              ),
+            ),
+          ],
+          centerTitle: true,
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Mot d\'hier',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_lastWords.isNotEmpty)
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: pastelYellow.withOpacity(0.3)),
+                          ),
+                          child: Column(
+                            children: [
+                              GestureDetector(
+                                onTap: () => _fetchWordWiki(_lastWords.first['word']),
+                                child: Text(
+                                  _lastWords.first['word'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Voir les mots les plus proches',
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 12,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A2A),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
+                            const SizedBox(width: 8),
                             Text(
-                              'Voir les mots les plus proches',
-                              style: TextStyle(
-                                color: Colors.grey[400],
-                                fontSize: 12,
+                              currentWord != null
+                                  ? 'Prochain mot dans $_timeLeft'
+                                  : 'Chargement...',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
                                 fontFamily: 'Poppins',
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A2A2A),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            currentWord != null
-                                ? 'Prochain mot dans $_timeLeft'
-                                : 'Chargement...',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontFamily: 'Poppins',
+                      const SizedBox(width: 10),
+                      StreamBuilder<int>(
+                        stream: _getPlayersFoundCount(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) return const SizedBox();
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2A2A2A),
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    StreamBuilder<int>(
-                      stream: _getPlayersFoundCount(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) return const SizedBox();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.people_outline, color: Colors.white, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${snapshot.data} ${snapshot.data == 1 ? 'joueur' : 'joueurs'}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontFamily: 'Poppins',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.people_outline, color: Colors.white, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${snapshot.data} ${snapshot.data == 1 ? 'joueur' : 'joueurs'}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontFamily: 'Poppins',
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: pastelYellow.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  if (_showRevealButton)
-                    IconButton(
-                      icon: Icon(
-                        Icons.visibility,
-                        color: pastelYellow,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _controller.text = currentWord ?? '';
-                        });
-                      },
-                      tooltip: 'Révéler le mot',
-                    ),
-                  Expanded(
-                    child: TextSelectionTheme(
-                      data: TextSelectionThemeData(
-                        selectionHandleColor: pastelYellow,
-                        cursorColor: pastelYellow,
-                        selectionColor: pastelYellow.withOpacity(0.3),
-                      ),
-                      child: TextField(
-                        controller: _controller,
-                        style: const TextStyle(color: Colors.white),
-                        cursorColor: pastelYellow,
-                        keyboardType: TextInputType.text,
-                        textInputAction: TextInputAction.search,
-                        onSubmitted: (_) => _handleGuess(),
-                        decoration: InputDecoration(
-                          hintText: 'Entrez votre mot...',
-                          hintStyle: TextStyle(color: Colors.grey[400]),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16),
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.arrow_back, color: pastelYellow),
-                    onPressed: () {
-                      _retrieveLastGuess();
-                    },
-                  ),
-                  Container(
-                    margin: const EdgeInsets.all(4),
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleGuess,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: pastelYellow.withOpacity(0.9),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                          : const Text(
-                        'Proposer',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            if (_errorMessage != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0)
-                    .copyWith(
-                    bottom: 17.0),
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _errorMessage!,
-                  style: TextStyle(
-                    color: Colors.red[400],
-                    fontSize: 14,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-              ),
-
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _lastGuessResult?.isCorrect == true
-                      ? Colors.green
-                      : pastelYellow.withOpacity(0.3),
-                  width: _lastGuessResult?.isCorrect == true ? 2 : 1,
-                ),
-              ),
-              child: _lastGuessResult != null
-                  ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _lastGuessResult!.word,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    '${(_lastGuessResult!.similarity * 100).toStringAsFixed(2)}° ${_getTemperatureEmoji(_lastGuessResult!.similarity * 100)}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              )
-                  : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Votre dernière proposition',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
-                      fontFamily: 'Poppins',
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            Divider(
-              color: pastelYellow,
-              thickness: 1,
-              height: 1,
-              indent: 16,
-              endIndent: 16,
-            ),
-
-            const SizedBox(height: 16),
-
-            Expanded(
-              child: _guesses.isEmpty
-                  ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.search, size: 64, color: Colors.grey[700]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Commencez à jouer !',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 18,
-                          fontFamily: 'Poppins',
-                        ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
-              )
-                  : Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+
+              Container(
+                margin: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: pastelYellow.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    if (_showRevealButton)
+                      IconButton(
+                        icon: Icon(
+                          Icons.visibility,
+                          color: pastelYellow,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _controller.text = currentWord ?? '';
+                          });
+                        },
+                        tooltip: 'Révéler le mot',
+                      ),
+                    Expanded(
+                      child: TextSelectionTheme(
+                        data: TextSelectionThemeData(
+                          selectionHandleColor: pastelYellow,
+                          cursorColor: pastelYellow,
+                          selectionColor: pastelYellow.withOpacity(0.3),
+                        ),
+                        child: TextField(
+                          controller: _controller,
+                          focusNode: _focusNode,
+                          style: const TextStyle(color: Colors.white),
+                          cursorColor: pastelYellow,
+                          keyboardType: TextInputType.text,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: (_) => _handleGuess(),
+                          decoration: InputDecoration(
+                            hintText: 'Entrez votre mot...',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.arrow_back, color: pastelYellow),
+                      onPressed: () {
+                        _retrieveLastGuess();
+                      },
+                    ),
+                    Container(
+                      margin: const EdgeInsets.all(4),
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleGuess,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: pastelYellow.withOpacity(0.9),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                            : const Text(
+                          'Proposer',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (_errorMessage != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0)
+                      .copyWith(
+                      bottom: 17.0),
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: Colors.red[400],
+                      fontSize: 14,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ),
+
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: const Color(0xFF2A2A2A),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: pastelYellow.withOpacity(0.3),
-                    width: 1,
+                    color: _lastGuessResult?.isCorrect == true
+                        ? Colors.green
+                        : pastelYellow.withOpacity(0.3),
+                    width: _lastGuessResult?.isCorrect == true ? 2 : 1,
                   ),
                 ),
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: _guesses.length,
-                  itemBuilder: (context, index) {
-                    final sortedGuesses = List<GuessResult>.from(_guesses)
-                      ..sort((a, b) => b.similarity.compareTo(a.similarity));
-                    final guess = sortedGuesses[index];
-
-                    return Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: pastelYellow.withOpacity(0.1),
-                            width: 1,
-                          ),
-                        ),
+                child: _lastGuessResult != null
+                    ? Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _lastGuessResult!.word,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w500,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            GestureDetector(
-                              onTap: () => _fetchWordWiki(guess.word),
-                              child: Text(
-                                guess.word,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontFamily: 'Poppins',
-                                ),
-                              ),
-                            ),
-                            Text(
-                              '${(guess.similarity * 100).toStringAsFixed(2)}° ${_getTemperatureEmoji(guess.similarity * 100)}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
+                    ),
+                    Text(
+                      '${(_lastGuessResult!.similarity * 100).toStringAsFixed(2)}° ${_getTemperatureEmoji(_lastGuessResult!.similarity * 100)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                    );
-                  },
+                    ),
+                  ],
+                )
+                    : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Votre dernière proposition',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 16,
+                        fontFamily: 'Poppins',
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-      bottomNavigationBar: widget.fromContainer ? null : CustomBottomBar(
-        currentIndex: 0,
-        onTap: (index) {
-          if (index != 0 && mounted) {
-            Navigator.pushReplacement(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) =>
-                switch (index) {
-                  1 => const WikiGameScreen(),
-                  2 => const SettingsScreen(),
-                  _ => const MainScreen(),
-                },
-                transitionDuration: Duration.zero,
-                reverseTransitionDuration: Duration.zero,
+              const SizedBox(height: 16),
+
+              Divider(
+                color: pastelYellow,
+                thickness: 1,
+                height: 1,
+                indent: 16,
+                endIndent: 16,
               ),
-            );
-          }
-        },
+
+              const SizedBox(height: 16),
+
+              Expanded(
+                child: _guesses.isEmpty
+                    ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search, size: 64, color: Colors.grey[700]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Commencez à jouer !',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 18,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                    : Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: pastelYellow.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: _guesses.length,
+                    itemBuilder: (context, index) {
+                      final sortedGuesses = List<GuessResult>.from(_guesses)
+                        ..sort((a, b) => b.similarity.compareTo(a.similarity));
+                      final guess = sortedGuesses[index];
+
+                      return Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: pastelYellow.withOpacity(0.1),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              GestureDetector(
+                                onTap: () => _fetchWordWiki(guess.word),
+                                child: Text(
+                                  guess.word,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${(guess.similarity * 100).toStringAsFixed(2)}° ${_getTemperatureEmoji(guess.similarity * 100)}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+        bottomNavigationBar: widget.fromContainer ? null : CustomBottomBar(
+          currentIndex: 0,
+          onTap: (index) {
+            if (index != 0 && mounted) {
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                  switch (index) {
+                    1 => const WikiGameScreen(),
+                    2 => const SettingsScreen(),
+                    _ => const MainScreen(),
+                  },
+                  transitionDuration: Duration.zero,
+                  reverseTransitionDuration: Duration.zero,
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }
