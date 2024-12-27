@@ -79,8 +79,8 @@ def trigger_word_update():
             'error': str(e)
         }), 500
 
-FILE_ID = "1ni-nwcVhNq7kJxX_Whv3PxknEqrIGMBK"
-MODEL_PATH = "model.bin"
+FILE_ID = "1YcA6pB5Y138X0Chk66fv_eYKGLzW0N2c"
+MODEL_PATH = "modele.bin"
 
 def download_model():
     """Download the model from Google Drive if it doesn't exist"""
