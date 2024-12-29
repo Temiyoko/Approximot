@@ -41,11 +41,14 @@ class MultiplayerGameView extends StatelessWidget {
                     'Code de partie: ',
                     style: TextStyle(color: Colors.white70),
                   ),
-                  SelectableText(
-                    session.code,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: SelectableText(
+                      session.code,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],
