@@ -1096,10 +1096,106 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return WordHistoryWidget(
-          lastWords: _lastWords,
-          fetchWordWiki: _fetchWordWiki,
-          currentWordStream: _currentWordSubject.stream,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'Historique des mots',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+            
+            Expanded(
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  scrollbarTheme: ScrollbarThemeData(
+                    thumbColor: MaterialStateProperty.all(pastelYellow.withOpacity(0.5)),
+                    trackColor: MaterialStateProperty.all(Colors.grey[800]),
+                    radius: const Radius.circular(10),
+                    thickness: MaterialStateProperty.all(6),
+                    thumbVisibility: MaterialStateProperty.all(true),
+                    trackVisibility: MaterialStateProperty.all(true),
+                  ),
+                ),
+                child: Scrollbar(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    itemCount: _lastWords.length,
+                    itemBuilder: (context, index) {
+                      final wordData = _lastWords[index];
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A1A),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: pastelYellow.withOpacity(0.2)),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          onTap: () => _fetchWordWiki(wordData['word']),
+                          title: Text(
+                            wordData['word'],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 6),
+                              Text(
+                                'Mot du ${_formatDate(wordData['timestamp'])}',
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 12,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${wordData['found_count']} ${wordData['found_count'] == 1 ? 'joueur a trouvé' : 'joueurs ont trouvé'}',
+                                style: TextStyle(
+                                  color: pastelYellow.withOpacity(0.7),
+                                  fontSize: 12,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: Icon(
+                            Icons.arrow_forward_ios,
+                            color: pastelYellow.withOpacity(0.3),
+                            size: 16,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
         );
       },
     );
@@ -1114,6 +1210,13 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           if (!snapshot.exists) return 0;
           return snapshot.data()?['found_count'] ?? 0;
         });
+  }
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+    return '$day/$month/$year';
   }
 
   @override
