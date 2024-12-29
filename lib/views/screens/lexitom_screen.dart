@@ -1528,7 +1528,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                               GestureDetector(
                                 onTap: () => _fetchWordWiki(guess.word),
                                 child: Text(
-                                  guess.word,
+                                  '${index + 1}. ${guess.word}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
