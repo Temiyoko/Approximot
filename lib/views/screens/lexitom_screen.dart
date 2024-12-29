@@ -1510,6 +1510,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                         ..sort((a, b) => b.similarity.compareTo(a.similarity));
                       final guess = sortedGuesses[index];
 
+                      final originalIndex = _guesses.length - _guesses.indexOf(guess);
+
                       return Container(
                         decoration: BoxDecoration(
                           border: Border(
@@ -1527,13 +1529,26 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                             children: [
                               GestureDetector(
                                 onTap: () => _fetchWordWiki(guess.word),
-                                child: Text(
-                                  '${index + 1}. ${guess.word}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontFamily: 'Poppins',
-                                  ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '$originalIndex • ',
+                                      style: TextStyle(
+                                        color: pastelYellow,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      guess.word,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontFamily: 'Poppins',
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               Text(
