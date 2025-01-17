@@ -210,16 +210,16 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     if (guess.isEmpty) return;
 
     setState(() {
-        _lastSubmittedWords.insert(0, guess);
-        if (_lastSubmittedWords.length > 10) {
-            _lastSubmittedWords.removeLast();
-        }
-        _currentSubmittedWordIndex = 0;
+      _lastSubmittedWords.insert(0, guess);
+      if (_lastSubmittedWords.length > 10) {
+        _lastSubmittedWords.removeLast();
+      }
+      _currentSubmittedWordIndex = 0;
     });
     _controller.clear();
 
     setState(() {
-        _isLoading = true;
+      _isLoading = true;
     });
 
     try {
