@@ -33,8 +33,10 @@ last_words = []
 cached_word = None
 cached_timestamp = 0
 
+
 def update_word():
     """Update the word in Firestore"""
+
     try:
         current_time = int(time.time() * 1000)
         current_word_doc = db.collection(COLLECTION).document(DOCUMENT).get()
@@ -81,8 +83,10 @@ def update_word():
     except Exception as e:
         print(f"Error updating word: {str(e)}")
 
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(update_word, 'interval', seconds=WORD_DURATION, id='update_word_job')
+
 
 @app.before_first_request
 def init_scheduler():
@@ -90,6 +94,7 @@ def init_scheduler():
     download_model()
     load_model()
     update_word()
+
 
 @app.route('/force-update-word', methods=['POST'])
 def force_update_word():
@@ -100,37 +105,46 @@ def force_update_word():
         'message': 'Word updated successfully'
     })
 
+
+def get_download_url(session, base_url):
+    """Get the final download URL handling Google Drive confirmation token"""
+    response = session.get(base_url, stream=True)
+
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            return f"{base_url}&confirm={value}"
+
+    return base_url
+
+
+def save_model_file(response):
+    """Save the model file from the response stream"""
+    with open(MODEL_PATH, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                f.write(chunk)
+
+
 def download_model():
     """Download the model from Google Drive if it doesn't exist"""
-    if not Path(MODEL_PATH).exists():
-        try:
-            session = requests.Session()
-            url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
-            response = session.get(url, stream=True)
+    if Path(MODEL_PATH).exists():
+        return
+    try:
+        session = requests.Session()
+        base_url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
+        final_url = get_download_url(session, base_url)
+        response = session.get(final_url, stream=True)
+        response.raise_for_status()
 
-            token = None
-            for key, value in response.cookies.items():
-                if key.startswith('download_warning'):
-                    token = value
-                    break
+        save_model_file(response)
+        print("Model downloaded successfully")
 
-            if token:
-                url = f"{url}&confirm={token}"
+    except Exception as e:
+        print(f"Error downloading model: {str(e)}")
+        if Path(MODEL_PATH).exists():
+            Path(MODEL_PATH).unlink()
+        raise
 
-            response = session.get(url, stream=True)
-            response.raise_for_status()
-
-            with open(MODEL_PATH, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-
-            print("Model downloaded successfully")
-        except Exception as e:
-            print(f"Error downloading model: {str(e)}")
-            if Path(MODEL_PATH).exists():
-                Path(MODEL_PATH).unlink()
-            raise
 
 def load_model():
     """Load the model from the specified path"""
@@ -143,10 +157,11 @@ def load_model():
             unicode_errors='ignore'
         )
         print("Model loaded successfully")
-    except Exception as e:
+    except Exception:
         import traceback
         traceback.print_exc()
         sys.exit(1)
+
 
 @app.route('/update-word', methods=['POST'])
 def trigger_word_update():
@@ -162,12 +177,15 @@ def trigger_word_update():
             'error': str(e)
         }), 500
 
+
 FILE_ID = "1YcA6pB5Y138X0Chk66fv_eYKGLzW0N2c"
 MODEL_PATH = "model.bin"
+
 
 def get_model_path():
     """Get the path to the model file"""
     return MODEL_PATH
+
 
 @app.route('/embed', methods=['POST'])
 def get_embedding():
@@ -190,6 +208,7 @@ def get_embedding():
             'success': False,
             'error': str(e)
         }), 500
+
 
 @app.route('/similar', methods=['POST'])
 def get_similar_words():
@@ -216,6 +235,7 @@ def get_similar_words():
             'error': str(e)
         }), 500
 
+
 @app.route('/random', methods=['GET'])
 def get_random_word():
     try:
@@ -230,6 +250,7 @@ def get_random_word():
             'error': str(e)
         }), 500
 
+
 @app.route('/similarity', methods=['POST'])
 def get_similarity():
     try:
@@ -242,10 +263,10 @@ def get_similarity():
             'success': True,
             'similarity': float(similarity)
         })
-    except KeyError as e:
+    except KeyError:
         return jsonify({
             'success': False,
-            'error': f"Word not found in vocabulary"
+            'error': "Word not found in vocabulary"
         }), 404
     except Exception as e:
         return jsonify({
@@ -253,12 +274,14 @@ def get_similarity():
             'error': str(e)
         }), 500
 
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({
         'status': 'healthy',
         'model_loaded': model is not None
     })
+
 
 @app.route('/current-word', methods=['GET'])
 def get_current_word():
@@ -311,6 +334,7 @@ def get_current_word():
             'error': str(e)
         }), 500
 
+
 @app.route('/increment-found-count', methods=['POST'])
 def increment_found_count():
     try:
@@ -335,6 +359,7 @@ def increment_found_count():
             'success': False,
             'error': str(e)
         }), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
