@@ -11,6 +11,7 @@ from firebase_admin import credentials, firestore
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import json
+from apscheduler.triggers.cron import CronTrigger
 
 app = Flask(__name__)
 CORS(app)
@@ -24,19 +25,18 @@ else:
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-WORD_DURATION = 300  # seconds
 COLLECTION = 'game'
 DOCUMENT = 'currentWord'
+WORD_LIST_FILE_ID = "1VAkmMXs83XdOky0_LTMq2C1qjvPya7Wu"
+FILE_ID = "1YcA6pB5Y138X0Chk66fv_eYKGLzW0N2c"
+MODEL_PATH = "model.bin"
 
 last_words = []
-
 cached_word = None
 cached_timestamp = 0
 
-
 def update_word():
     """Update the word in Firestore"""
-
     try:
         current_time = int(time.time() * 1000)
         current_word_doc = db.collection(COLLECTION).document(DOCUMENT).get()
@@ -45,22 +45,41 @@ def update_word():
             current_word_data = current_word_doc.to_dict()
             old_word = current_word_data.get('word')
             old_word_date = current_word_data.get('timestamp')
-            found_count = current_word_data.get('found_count', 0) if current_word_doc.exists else 0
+            found_count = current_word_data.get('found_count', 0)
         else:
             old_word = None
             old_word_date = None
 
-        word = random.choice(list(model.key_to_index.keys()))
+        if old_word_date and (current_time - old_word_date < 180000):
+            print("Word update skipped to prevent rapid consecutive updates.")
+            return
 
-        last_words.append({
-            'word': old_word,
-            'timestamp': old_word_date,
-            'found_count': found_count
-        })
+        last_words_doc = db.collection('game').document('last_words').get()
+        if last_words_doc.exists:
+            last_words = last_words_doc.to_dict().get('last_words', [])
+        else:
+            last_words = []
+
+        if not last_words or last_words[-1]['timestamp'] != old_word_date:
+            last_words.append({
+                'word': old_word,
+                'timestamp': old_word_date,
+                'found_count': found_count
+            })
+
+        if len(last_words) > 100:
+            last_words.pop(0)
 
         db.collection('game').document('last_words').set({
             'last_words': last_words
         })
+
+        words = load_word_list()
+        if not words:
+            print("Error: Word list is empty.")
+            return
+
+        word = random.choice(words)
 
         batch = db.batch()
         for user in db.collection('users').stream():
@@ -83,28 +102,17 @@ def update_word():
     except Exception as e:
         print(f"Error updating word: {str(e)}")
 
-
 scheduler = BackgroundScheduler()
-scheduler.add_job(update_word, 'interval', seconds=WORD_DURATION, id='update_word_job')
-
+scheduler.add_job(update_word, CronTrigger(minute='0,30'), id='update_word_job')
 
 @app.before_first_request
 def init_scheduler():
-    scheduler.start()
+    if not scheduler.running:
+        scheduler.start()
     download_model()
+    download_word_list()
     load_model()
     update_word()
-
-
-@app.route('/force-update-word', methods=['POST'])
-def force_update_word():
-    """Force an immediate word update"""
-    update_word()
-    return jsonify({
-        'success': True,
-        'message': 'Word updated successfully'
-    })
-
 
 def get_download_url(session, base_url):
     """Get the final download URL handling Google Drive confirmation token"""
@@ -116,14 +124,12 @@ def get_download_url(session, base_url):
 
     return base_url
 
-
 def save_model_file(response):
     """Save the model file from the response stream"""
     with open(MODEL_PATH, 'wb') as f:
         for chunk in response.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
-
 
 def download_model():
     """Download the model from Google Drive if it doesn't exist"""
@@ -145,7 +151,6 @@ def download_model():
             Path(MODEL_PATH).unlink()
         raise
 
-
 def load_model():
     """Load the model from the specified path"""
     try:
@@ -157,11 +162,36 @@ def load_model():
             unicode_errors='ignore'
         )
         print("Model loaded successfully")
-    except Exception:
+    except Exception as _:
         import traceback
         traceback.print_exc()
         sys.exit(1)
 
+def download_word_list():
+    """Download the word list from Google Drive"""
+    word_list_path = "motscommuns.txt"
+    if not Path(word_list_path).exists():
+        try:
+            session = requests.Session()
+            url = f"https://drive.google.com/uc?export=download&id={WORD_LIST_FILE_ID}"
+            response = session.get(url)
+            response.raise_for_status()
+
+            with open(word_list_path, 'wb') as f:
+                f.write(response.content)
+
+            print("Word list downloaded successfully")
+        except Exception as e:
+            print(f"Error downloading word list: {str(e)}")
+            if Path(word_list_path).exists():
+                Path(word_list_path).unlink()
+            raise
+
+def load_word_list():
+    """Load the word list from the specified path"""
+    with open("motscommuns.txt", 'r') as f:
+        words = f.read().splitlines()
+    return words
 
 @app.route('/update-word', methods=['POST'])
 def trigger_word_update():
@@ -177,15 +207,9 @@ def trigger_word_update():
             'error': str(e)
         }), 500
 
-
-FILE_ID = "1YcA6pB5Y138X0Chk66fv_eYKGLzW0N2c"
-MODEL_PATH = "model.bin"
-
-
 def get_model_path():
     """Get the path to the model file"""
     return MODEL_PATH
-
 
 @app.route('/embed', methods=['POST'])
 def get_embedding():
@@ -208,7 +232,6 @@ def get_embedding():
             'success': False,
             'error': str(e)
         }), 500
-
 
 @app.route('/similar', methods=['POST'])
 def get_similar_words():
@@ -235,7 +258,6 @@ def get_similar_words():
             'error': str(e)
         }), 500
 
-
 @app.route('/random', methods=['GET'])
 def get_random_word():
     try:
@@ -250,7 +272,6 @@ def get_random_word():
             'error': str(e)
         }), 500
 
-
 @app.route('/similarity', methods=['POST'])
 def get_similarity():
     try:
@@ -263,7 +284,7 @@ def get_similarity():
             'success': True,
             'similarity': float(similarity)
         })
-    except KeyError:
+    except KeyError as _:
         return jsonify({
             'success': False,
             'error': "Word not found in vocabulary"
@@ -274,7 +295,6 @@ def get_similarity():
             'error': str(e)
         }), 500
 
-
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({
@@ -282,18 +302,27 @@ def health_check():
         'model_loaded': model is not None
     })
 
-
 @app.route('/current-word', methods=['GET'])
 def get_current_word():
     global cached_word, cached_timestamp
     try:
         current_time = int(time.time() * 1000)
 
-        if cached_word and (current_time - cached_timestamp < WORD_DURATION * 1000):
+        current_minute = (current_time // 60000) % 60
+        current_hour = (current_time // 3600000) % 24
+
+        if current_minute < 30:
+            next_update_minute = 30
+        else:
+            next_update_minute = 0
+            current_hour = (current_hour + 1) % 24
+
+        next_update_time = (current_time // 3600000) * 3600000 + next_update_minute * 60000
+
+        if cached_word and (current_time < next_update_time):
             doc = db.collection(COLLECTION).document(DOCUMENT).get()
             found_count = doc.to_dict().get('found_count', 0)
-            remaining_time = (WORD_DURATION * 1000) - (current_time - cached_timestamp)
-            remaining_time = max(0, remaining_time)
+            remaining_time = next_update_time - current_time
             return jsonify({
                 'success': True,
                 'word': cached_word,
@@ -317,8 +346,7 @@ def get_current_word():
         cached_word = data.get('word')
         cached_timestamp = timestamp
 
-        remaining_time = (WORD_DURATION * 1000) - (current_time - cached_timestamp)
-        remaining_time = max(0, remaining_time)
+        remaining_time = next_update_time - current_time
 
         return jsonify({
             'success': True,
@@ -333,7 +361,6 @@ def get_current_word():
             'success': False,
             'error': str(e)
         }), 500
-
 
 @app.route('/increment-found-count', methods=['POST'])
 def increment_found_count():
@@ -360,6 +387,53 @@ def increment_found_count():
             'error': str(e)
         }), 500
 
+@app.route('/choose-word', methods=['POST'])
+def choose_word():
+    """Choose a specific word to guess and reset the timer and states."""
+    try:
+        data = request.get_json()
+        chosen_word = data.get('word', '').strip()
+
+        if not chosen_word:
+            return jsonify({
+                'success': False,
+                'error': 'No word provided'
+            }), 400
+
+        current_time = int(time.time() * 1000)
+
+        db.collection(COLLECTION).document(DOCUMENT).set({
+            'word': chosen_word,
+            'timestamp': current_time,
+            'found_count': 0
+        })
+
+        batch = db.batch()
+        for user in db.collection('users').stream():
+            batch.update(db.collection('users').document(user.id), {'singlePlayerGuesses': []})
+        for game in db.collection('game_sessions').stream():
+            batch.update(db.collection('game_sessions').document(game.id), {
+                'playerGuesses': {},
+                'wordFound': False,
+                'winners': []
+            })
+        batch.commit()
+
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Word chosen successfully: {chosen_word}")
+
+        global cached_word, cached_timestamp
+        cached_word = chosen_word
+        cached_timestamp = current_time
+
+        return jsonify({
+            'success': True,
+            'message': f'Word chosen successfully: {chosen_word}'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
