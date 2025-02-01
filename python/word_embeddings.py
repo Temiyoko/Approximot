@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 from flask_cors import CORS
 import gensim
 import random
@@ -12,6 +12,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import json
 from apscheduler.triggers.cron import CronTrigger
+from datetime import datetime
+import pytz
+from threading import Lock
 
 app = Flask(__name__)
 CORS(app)
@@ -30,15 +33,37 @@ DOCUMENT = 'currentWord'
 WORD_LIST_FILE_ID = "1VAkmMXs83XdOky0_LTMq2C1qjvPya7Wu"
 FILE_ID = "1YcA6pB5Y138X0Chk66fv_eYKGLzW0N2c"
 MODEL_PATH = "model.bin"
+timezone = 'Europe/Paris'
 
-last_words = []
-cached_word = None
-cached_timestamp = 0
+# Add application state management
+class ApplicationState:
+    def __init__(self):
+        self.model = None
+        self.cached_word = None
+        self.cached_timestamp = 0
+        self.update_lock = Lock()
+        self.initialized = False
+
+app_state = ApplicationState()
 
 def update_word():
     """Update the word in Firestore"""
+    if not app_state.update_lock.acquire(blocking=False):
+        print("Update already in progress, skipping...")
+        return
+        
     try:
-        current_time = int(time.time() * 1000)
+        french_tz = pytz.timezone(timezone)
+        current_time = int(datetime.now(french_tz).timestamp() * 1000)
+        
+        # Check if we're exactly at a 30-minute mark in French time
+        current_dt = datetime.fromtimestamp(current_time / 1000, french_tz)
+        minutes = current_dt.minute
+        
+        if minutes not in [0, 30]:
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Skipping update - not at 30-minute mark")
+            return
+
         current_word_doc = db.collection(COLLECTION).document(DOCUMENT).get()
 
         if current_word_doc.exists:
@@ -46,32 +71,30 @@ def update_word():
             old_word = current_word_data.get('word')
             old_word_date = current_word_data.get('timestamp')
             found_count = current_word_data.get('found_count', 0)
-        else:
-            old_word = None
-            old_word_date = None
-
-        if old_word_date and (current_time - old_word_date < 180000):
-            print("Word update skipped to prevent rapid consecutive updates.")
-            return
+            
+            # Prevent multiple updates in the same minute
+            if old_word_date and (current_time - old_word_date < 60000):
+                print("Word update skipped - too soon since last update")
+                return
 
         last_words_doc = db.collection('game').document('last_words').get()
         if last_words_doc.exists:
-            last_words = last_words_doc.to_dict().get('last_words', [])
+            last_words_list = last_words_doc.to_dict().get('last_words', [])
         else:
-            last_words = []
+            last_words_list = []
 
-        if not last_words or last_words[-1]['timestamp'] != old_word_date:
-            last_words.append({
+        if not last_words_list or last_words_list[-1]['timestamp'] != old_word_date:
+            last_words_list.append({
                 'word': old_word,
                 'timestamp': old_word_date,
                 'found_count': found_count
             })
 
-        if len(last_words) > 100:
-            last_words.pop(0)
+        if len(last_words_list) > 100:
+            last_words_list.pop(0)
 
         db.collection('game').document('last_words').set({
-            'last_words': last_words
+            'last_words': last_words_list
         })
 
         words = load_word_list()
@@ -98,21 +121,40 @@ def update_word():
             'found_count': 0
         })
 
+        app_state.cached_word = word
+        app_state.cached_timestamp = current_time
+
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Word updated successfully to: {word}")
     except Exception as e:
         print(f"Error updating word: {str(e)}")
+    finally:
+        app_state.update_lock.release()
 
-scheduler = BackgroundScheduler()
-scheduler.add_job(update_word, CronTrigger(minute='0,30'), id='update_word_job')
+scheduler = BackgroundScheduler(timezone=timezone)
+scheduler.add_job(
+    update_word,
+    CronTrigger(minute='0,30', timezone=timezone),
+    id='update_word_job'
+)
 
 @app.before_first_request
 def init_scheduler():
+    if app_state.initialized:
+        return
+        
     if not scheduler.running:
         scheduler.start()
     download_model()
     download_word_list()
     load_model()
     update_word()
+    app_state.initialized = True
+
+@app.before_request
+def remove_double_slash():
+    if '//' in request.path:
+        path = request.path.replace('//', '/')
+        return redirect(path, code=301)
 
 def get_download_url(session, base_url):
     """Get the final download URL handling Google Drive confirmation token"""
@@ -153,18 +195,19 @@ def download_model():
 
 def load_model():
     """Load the model from the specified path"""
+    if app_state.model is not None:
+        return
+        
     try:
         model_path = get_model_path()
-        global model
-        model = gensim.models.KeyedVectors.load_word2vec_format(
+        app_state.model = gensim.models.KeyedVectors.load_word2vec_format(
             model_path,
             binary=True,
             unicode_errors='ignore'
         )
         print("Model loaded successfully")
-    except Exception as _:
-        import traceback
-        traceback.print_exc()
+    except Exception as e:
+        print(f"An unexpected error occurred: {str(e)}")
         sys.exit(1)
 
 def download_word_list():
@@ -213,11 +256,11 @@ def get_model_path():
 
 @app.route('/embed', methods=['POST'])
 def get_embedding():
+    data = request.get_json()
     try:
-        data = request.get_json()
         received_word = data.get('text', '')
 
-        embedding = model[received_word].tolist()
+        embedding = app_state.model[received_word].tolist()
         return jsonify({
             'success': True,
             'embedding': embedding
@@ -235,12 +278,12 @@ def get_embedding():
 
 @app.route('/similar', methods=['POST'])
 def get_similar_words():
+    data = request.get_json()
     try:
-        data = request.get_json()
         word = data.get('text', '')
         topn = data.get('topn', 100)
 
-        similar_words = model.most_similar(word, topn=topn)
+        similar_words = app_state.model.most_similar(word, topn=topn)
         result = [{"word": word, "similarity": float(score)} for word, score in similar_words]
 
         return jsonify({
@@ -261,7 +304,7 @@ def get_similar_words():
 @app.route('/random', methods=['GET'])
 def get_random_word():
     try:
-        word = random.choice(list(model.key_to_index.keys()))
+        word = random.choice(list(app_state.model.key_to_index.keys()))
         return jsonify({
             'success': True,
             'word': word
@@ -279,7 +322,7 @@ def get_similarity():
         word1 = data.get('word1', '')
         word2 = data.get('word2', '')
 
-        similarity = model.similarity(word1, word2)
+        similarity = app_state.model.similarity(word1, word2)
         return jsonify({
             'success': True,
             'similarity': float(similarity)
@@ -299,39 +342,17 @@ def get_similarity():
 def health_check():
     return jsonify({
         'status': 'healthy',
-        'model_loaded': model is not None
+        'model_loaded': app_state.model is not None
     })
 
 @app.route('/current-word', methods=['GET'])
 def get_current_word():
-    global cached_word, cached_timestamp
     try:
-        current_time = int(time.time() * 1000)
-
-        current_minute = (current_time // 60000) % 60
-        current_hour = (current_time // 3600000) % 24
-
-        if current_minute < 30:
-            next_update_minute = 30
-        else:
-            next_update_minute = 0
-            current_hour = (current_hour + 1) % 24
-
-        next_update_time = (current_time // 3600000) * 3600000 + next_update_minute * 60000
-
-        if cached_word and (current_time < next_update_time):
-            doc = db.collection(COLLECTION).document(DOCUMENT).get()
-            found_count = doc.to_dict().get('found_count', 0)
-            remaining_time = next_update_time - current_time
-            return jsonify({
-                'success': True,
-                'word': cached_word,
-                'timestamp': cached_timestamp,
-                'current_time': current_time,
-                'time_remaining': remaining_time,
-                'found_count': found_count
-            })
-
+        # Get time in French timezone
+        french_tz = pytz.timezone(timezone)
+        current_time = int(datetime.now(french_tz).timestamp() * 1000)
+        
+        # Get the document first
         doc = db.collection(COLLECTION).document(DOCUMENT).get()
         if not doc.exists:
             return jsonify({
@@ -340,23 +361,40 @@ def get_current_word():
             }), 404
 
         data = doc.to_dict()
+        word = data.get('word')
         timestamp = data.get('timestamp', 0)
         found_count = data.get('found_count', 0)
 
-        cached_word = data.get('word')
-        cached_timestamp = timestamp
+        # Update cache
+        app_state.cached_word = word
+        app_state.cached_timestamp = timestamp
 
+        # Calculate next update time
+        current_dt = datetime.fromtimestamp(current_time / 1000, french_tz)
+        current_minute = current_dt.minute
+        current_hour = current_dt.hour
+
+        if current_minute < 30:
+            next_update_minute = 30
+            next_update_hour = current_hour
+        else:
+            next_update_minute = 0
+            next_update_hour = (current_hour + 1) % 24
+
+        next_dt = current_dt.replace(hour=next_update_hour, minute=next_update_minute, second=0, microsecond=0)
+        next_update_time = int(next_dt.timestamp() * 1000)
         remaining_time = next_update_time - current_time
 
         return jsonify({
             'success': True,
-            'word': cached_word,
-            'timestamp': cached_timestamp,
+            'word': word,
+            'timestamp': timestamp,
             'current_time': current_time,
             'time_remaining': remaining_time,
             'found_count': found_count
         })
     except Exception as e:
+        print(f"Error in get_current_word: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -374,8 +412,12 @@ def increment_found_count():
                 'error': 'No word found'
             }), 404
 
+        current_data = doc.to_dict()
+        current_found_count = current_data.get('found_count', 0)
+        new_found_count = current_found_count + 1
+
         doc_ref.update({
-            'found_count': firestore.Increment(1)
+            'found_count': new_found_count
         })
 
         return jsonify({
@@ -421,9 +463,8 @@ def choose_word():
 
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Word chosen successfully: {chosen_word}")
 
-        global cached_word, cached_timestamp
-        cached_word = chosen_word
-        cached_timestamp = current_time
+        app_state.cached_word = chosen_word
+        app_state.cached_timestamp = current_time
 
         return jsonify({
             'success': True,

@@ -1,1 +1,1 @@
-web: gunicorn word_embeddings:app 
+web: gunicorn --workers=1 --threads=1 --worker-class=sync word_embeddings:app
