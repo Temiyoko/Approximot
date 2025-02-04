@@ -100,4 +100,50 @@ class AuthService {
       });
     }
   }
+
+  static Future<void> updateLoginAttempts(String email, {bool reset = false}) async {
+    final userQuery = await _db.collection('users').where('email', isEqualTo: email).get();
+    if (userQuery.docs.isNotEmpty) {
+      final userDoc = userQuery.docs.first;
+      await _db.collection('users').doc(userDoc.id).update({
+        'loginAttempts': reset ? 0 : FieldValue.increment(1),
+        'lastLoginAttempt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  static Future<bool> isAccountLocked(String email) async {
+    final userQuery = await _db.collection('users').where('email', isEqualTo: email).get();
+    if (userQuery.docs.isNotEmpty) {
+      final userData = userQuery.docs.first.data();
+      final attempts = userData['loginAttempts'] ?? 0;
+      final lastAttempt = userData['lastLoginAttempt'] as Timestamp?;
+      
+      // If account was locked (3 or more attempts) and it's been less than 30 minutes
+      if (attempts >= 3 && lastAttempt != null) {
+        final lockoutDuration = const Duration(minutes: 30);
+        final now = DateTime.now();
+        final lockoutEnd = lastAttempt.toDate().add(lockoutDuration);
+        if (now.isBefore(lockoutEnd)) {
+          return true;
+        } else {
+          // Reset attempts after lockout period
+          await updateLoginAttempts(email, reset: true);
+          return false;
+        }
+      }
+    }
+    return false;
+  }
+
+  static Future<void> unlockAccount(String email) async {
+    final userQuery = await _db.collection('users').where('email', isEqualTo: email).get();
+    if (userQuery.docs.isNotEmpty) {
+      final userDoc = userQuery.docs.first;
+      await _db.collection('users').doc(userDoc.id).update({
+        'loginAttempts': 0,
+        'lastLoginAttempt': null,
+      });
+    }
+  }
 } 

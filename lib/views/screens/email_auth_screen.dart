@@ -14,11 +14,18 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final Color pastelYellow = const Color(0xFFF1E173);
   bool _isLoading = false;
   String? _errorMessage;
   bool _showPasswordField = false;
   bool _obscurePassword = true;
   bool _isNewUser = false;
+
+  String generateSecureDefaultPassword() {
+    String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+    String password = "Ap@$timestamp";
+    return password;
+  }
 
   Future<void> _continueWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
@@ -30,9 +37,10 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
 
     try {
       try {
+        String securePassword = generateSecureDefaultPassword();
         await AuthService.createUserWithEmail(
           _emailController.text,
-          DateTime.now().millisecondsSinceEpoch.toString(),
+          securePassword,
         );
         _isNewUser = true;
         await FirebaseAuth.instance.sendPasswordResetEmail(
@@ -86,10 +94,21 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     });
 
     try {
+      final isLocked = await AuthService.isAccountLocked(_emailController.text);
+      if (isLocked) {
+        setState(() {
+          _errorMessage = 'Compte bloqué suite à trop de tentatives.';
+          _isLoading = false;
+        });
+        return;
+      }
+
       await AuthService.signInWithEmail(
         _emailController.text,
         _passwordController.text,
       );
+
+      await AuthService.updateLoginAttempts(_emailController.text, reset: true);
 
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -98,6 +117,8 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
+      await AuthService.updateLoginAttempts(_emailController.text);
+      
       setState(() {
         if (_isNewUser && e.code == 'invalid-credential') {
           _errorMessage = 'Veuillez utiliser le lien reçu par email afin de réinitialiser votre mot de passe';
@@ -149,6 +170,54 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     }
   }
 
+  Future<void> _unlockAccount() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Send password reset email as verification
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _emailController.text,
+      );
+      
+      // Unlock the account
+      await AuthService.unlockAccount(_emailController.text);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Un email vous a été envoyé pour débloquer votre compte et réinitialiser votre mot de passe'
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 130,
+              right: 20,
+              left: 20,
+            ),
+            duration: const Duration(seconds: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Une erreur est survenue lors du déblocage du compte';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -161,9 +230,9 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
     return Theme(
       data: Theme.of(context).copyWith(
         textSelectionTheme: TextSelectionThemeData(
-          selectionColor: const Color(0xFFF1E173).withOpacity(0.3),
-          selectionHandleColor: const Color(0xFFF1E173),
-          cursorColor: const Color(0xFFF1E173),
+          selectionColor: pastelYellow.withOpacity(0.3),
+          selectionHandleColor: pastelYellow,
+          cursorColor: pastelYellow,
         ),
       ),
       child: Scaffold(
@@ -215,7 +284,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                     style: TextStyle(
                       color: _showPasswordField ? Colors.white38 : Colors.white,
                     ),
-                    cursorColor: const Color(0xFFF1E173),
+                    cursorColor: pastelYellow,
                     decoration: InputDecoration(
                       hintText: 'Email',
                       hintStyle: const TextStyle(color: Colors.white54),
@@ -280,15 +349,15 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                     const SizedBox(height: 38),
                     TextSelectionTheme(
                       data: TextSelectionThemeData(
-                        selectionHandleColor: const Color(0xFFF1E173),
-                        cursorColor: const Color(0xFFF1E173),
-                        selectionColor: const Color(0xFFF1E173).withOpacity(0.3),
+                        selectionHandleColor: pastelYellow,
+                        cursorColor: pastelYellow,
+                        selectionColor: pastelYellow.withOpacity(0.3),
                       ),
                       child: TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         style: const TextStyle(color: Colors.white),
-                        cursorColor: const Color(0xFFF1E173),
+                        cursorColor: pastelYellow,
                         decoration: InputDecoration(
                           hintText: 'Mot de passe',
                           hintStyle: const TextStyle(color: Colors.white54),
@@ -324,11 +393,16 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: TextButton(
-                          onPressed: _isLoading ? null : _resetPassword,
-                          child: const Text(
-                            'Mot de passe oublié ?',
+                          onPressed: _isLoading ? null : 
+                            _errorMessage?.contains('bloqué') == true ? _unlockAccount : _resetPassword,
+                          child: Text(
+                            _errorMessage?.contains('bloqué') == true 
+                                ? 'Débloquer mon compte'
+                                : 'Mot de passe oublié ?',
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: _errorMessage?.contains('bloqué') == true 
+                                  ? pastelYellow
+                                  : Colors.white70,
                               decoration: TextDecoration.underline,
                             ),
                           ),
