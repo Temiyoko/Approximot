@@ -41,3 +41,17 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment files
+.env
+
+# Firebase configuration files
+firebase-credentials.json
+google-services.json
+GoogleService-Info.plist
+
+# Build outputs
+build/
+
+# Local configuration
+local.properties

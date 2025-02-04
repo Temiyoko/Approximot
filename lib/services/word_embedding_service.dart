@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:projet/config/env.dart';
+
 class WordEmbeddingService {
   static WordEmbeddingService? _instance;
-  static const String baseUrl = 'https://approximot-1967d63b9545.herokuapp.com/';
+  static String baseUrl = Environment.herokuApiUrl;
 
   static WordEmbeddingService get instance {
     _instance ??= WordEmbeddingService._();

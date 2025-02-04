@@ -6,12 +6,15 @@ import 'firebase_options.dart';
 import 'package:projet/views/screens/splash_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/word_embedding_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 String? currentWord;
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  await dotenv.load(fileName: ".env");
 
   await SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge,

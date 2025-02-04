@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:projet/config/env.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -49,23 +50,22 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAMufWVumrUiIWHse7AeoDQyTfTS70jfEM',
-    appId: '1:127797921459:android:96cbb64ec6f7ae954752c6',
-    messagingSenderId: '127797921459',
-    projectId: 'approximot-2-0',
-    storageBucket: 'approximot-2-0.firebasestorage.app',
+  static final FirebaseOptions android = FirebaseOptions(
+    apiKey: Environment.firebaseApiKey,
+    appId: Environment.firebaseAppId,
+    messagingSenderId: Environment.firebaseMessagingSenderId,
+    projectId: Environment.firebaseProjectId,
+    storageBucket: Environment.firebaseStorageBucket,
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDixDcvvH6NpjfLstOI-V1OrVxwMd_MqaI',
-    appId: '1:127797921459:ios:b19a41e4565576324752c6',
-    messagingSenderId: '127797921459',
-    projectId: 'approximot-2-0',
-    storageBucket: 'approximot-2-0.firebasestorage.app',
-    androidClientId: '127797921459-6rpp5bh7smevgk8ofruprp72c9b1a9jr.apps.googleusercontent.com',
-    iosClientId: '127797921459-19hgnmd5p1gtmntou8fe2fi7koe4qeu0.apps.googleusercontent.com',
-    iosBundleId: 'com.approximot.projet',
+  static final FirebaseOptions ios = FirebaseOptions(
+    apiKey: Environment.firebaseApiKey,
+    appId: Environment.firebaseAppId,
+    messagingSenderId: Environment.firebaseMessagingSenderId,
+    projectId: Environment.firebaseProjectId,
+    storageBucket: Environment.firebaseStorageBucket,
+    androidClientId: Environment.androidClientId,
+    iosClientId: Environment.iosClientId,
+    iosBundleId: Environment.iosBundleId,
   );
-
 }
