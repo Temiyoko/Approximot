@@ -27,28 +27,60 @@ class WikiService {
   }
 
   static Future<Map<String, dynamic>> getRandomArticle() async {
-    // Premièrement, obtenir un titre d'article aléatoire
-    final randomResponse = await http.get(Uri.parse(
-      '$baseUrl?action=query&format=json&list=random'
-      '&rnnamespace=0&rnlimit=1'
-    ));
-    
-    final randomData = json.decode(randomResponse.body);
-    final title = randomData['query']['random'][0]['title'];
-    
-    // Ensuite, obtenir le contenu de l'article
-    final contentResponse = await http.get(Uri.parse(
+    while (true) {
+      // Premièrement, obtenir un titre d'article aléatoire
+      final randomResponse = await http.get(Uri.parse(
+        '$baseUrl?action=query&format=json&list=random'
+        '&rnnamespace=0&rnlimit=1'
+      ));
+      
+      final randomData = json.decode(randomResponse.body);
+      final title = randomData['query']['random'][0]['title'];
+      
+      // Vérifier si le titre contient uniquement des caractères de l'alphabet français
+      final validTitlePattern = RegExp(r"^[a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ\s\-\']+$");
+      if (!validTitlePattern.hasMatch(title)) {
+        continue;
+      }
+
+      // Ensuite, obtenir le contenu de l'article
+      final contentResponse = await http.get(Uri.parse(
+        '$baseUrl?action=query&format=json&titles=${Uri.encodeComponent(title)}'
+        '&prop=extracts&explaintext=1&exintro=1'
+      ));
+      
+      final contentData = json.decode(contentResponse.body);
+      final pages = contentData['query']['pages'];
+      final page = pages[pages.keys.first];
+      final content = page['extract'] ?? '';
+      
+      // Vérifier si le contenu est suffisamment long
+      if (content.length < 100) {  // Skip articles that are too short
+        continue;
+      }
+      
+      return {
+        'title': title,
+        'content': content,
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> getArticle(String title) async {
+    final response = await http.get(Uri.parse(
       '$baseUrl?action=query&format=json&titles=${Uri.encodeComponent(title)}'
       '&prop=extracts&explaintext=1&exintro=1'
     ));
     
-    final contentData = json.decode(contentResponse.body);
-    final pages = contentData['query']['pages'];
+    final data = json.decode(response.body);
+    final pages = data['query']['pages'];
     final page = pages[pages.keys.first];
+    final content = page['extract'] ?? '';
     
     return {
       'title': title,
-      'content': page['extract'] ?? '',
+      'content': content,
+      'direct_link': 'https://fr.wikipedia.org/wiki/${Uri.encodeComponent(title)}'
     };
   }
 } 

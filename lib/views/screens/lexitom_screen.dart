@@ -69,7 +69,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     });
 
     if (_gameCode == null) {
-      final savedGuesses = await SinglePlayerService.loadGuesses();
+      final savedGuesses = await SinglePlayerService.loadGuesses(gameType: 'lexitomGuesses');
       if (mounted) {
         setState(() {
           _guesses.addAll(savedGuesses);
@@ -99,7 +99,9 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
       if (!userDoc.exists) return;
 
-      final activeGame = userDoc.data()?['activeGame'];
+      final activeGames = Map<String, String>.from(userDoc.data()?['activeGames'] ?? {});
+      final activeGame = activeGames['lexitom'];
+      
       if (activeGame != null) {
         final gameDoc = await FirebaseFirestore.instance
             .collection('game_sessions')
@@ -108,22 +110,24 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
 
         if (gameDoc.exists) {
           final gameData = gameDoc.data()!;
-          final playerGuesses = gameData['playerGuesses'] as Map<String, dynamic>;
+          final session = GameSession.fromJson(gameData);
+          
+          if (session.gameType != 'lexitom') return;
 
           if (mounted) {
             setState(() {
               _gameCode = activeGame;
-              _gameSession = GameSession.fromJson(gameData);
+              _gameSession = session;
 
               _guesses.clear();
 
-              playerGuesses.forEach((playerId, guesses) {
-                final guessesList = guesses as List;
-                for (final guess in guessesList) {
-                  final guessResult = GuessResult.fromJson(guess);
-                  _guesses.add(guessResult);
+              for (var guesses in session.playerGuesses.values) {
+                for (final guess in guesses) {
+                  if (!_guesses.any((g) => g.word == guess.word)) {
+                    _guesses.add(guess);
+                  }
                 }
-              });
+              }
 
               _guesses.sort((a, b) => b.similarity.compareTo(a.similarity));
             });
@@ -243,13 +247,13 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           _lastGuessResult = guessResult;
         });
 
-        final userGuesses = await SinglePlayerService.loadGuesses();
+        final userGuesses = await SinglePlayerService.loadGuesses(gameType: 'lexitomGuesses');
 
         final isAlreadyWinner = (_gameSession?.winners.contains(
             AuthService.currentUser?.uid) ?? false) || userGuesses.any((g) => g.isCorrect);
         
         if (_gameCode == null) {
-          await SinglePlayerService.addGuess(guessResult);
+          await SinglePlayerService.addGuess(guessResult, gameType: 'lexitomGuesses');
         } else {
           await MultiplayerService.addGuess(
             _gameCode!,
@@ -705,12 +709,12 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                                 if (_guesses.isNotEmpty) {
                                   for (final guess in _guesses) {
                                     if (!guess.isCorrect || (guess.isCorrect && _gameSession!.winners.contains(AuthService.currentUser?.uid))) {
-                                      await SinglePlayerService.addGuess(guess);
+                                      await SinglePlayerService.addGuess(guess, gameType: 'lexitomGuesses');
                                     }
                                   }
                                 }
                                 
-                                await MultiplayerService.leaveGame(_gameCode!);
+                                await MultiplayerService.leaveGame(_gameCode!, gameType: 'lexitom');
                                 if (mounted) {
                                   setState(() {
                                     _gameSession = null;
@@ -754,15 +758,13 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     if (userId == null) return;
 
     try {
-      final session = await MultiplayerService.createGameSession(userId);
+      final session = await MultiplayerService.createGameSession(gameType: 'lexitom');
       if (!mounted) return;
 
-      final savedGuesses = await SinglePlayerService.loadGuesses();
+      final savedGuesses = await SinglePlayerService.loadGuesses(gameType: 'lexitomGuesses');
       if (savedGuesses.isNotEmpty) {
-        
         for (final guess in savedGuesses) {
           if (!guess.isCorrect) {
-            
             try {
               await MultiplayerService.addGuess(
                 session.code,
@@ -820,11 +822,11 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     if (userId == null) return;
 
     try {
-      final session = await MultiplayerService.joinGameSession(code, userId);
+      final session = await MultiplayerService.joinGameSession(code, userId, gameType: 'lexitom');
       if (!mounted) return;
 
       if (session != null) {
-        final savedGuesses = await SinglePlayerService.loadGuesses();
+        final savedGuesses = await SinglePlayerService.loadGuesses(gameType: 'lexitomGuesses');
         for (final guess in savedGuesses) {
           if (!guess.isCorrect) {
             await MultiplayerService.addGuess(
@@ -1146,11 +1148,40 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
           actions: [
             Padding(
               padding: const EdgeInsets.only(top: 50.0),
-              child: IconButton(
-                icon: const Icon(Icons.group, color: Colors.white),
-                onPressed: _showMultiplayerDialog,
-                tooltip: 'Multijoueur',
-              ),
+              child: _gameSession != null
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showMultiplayerDialog,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.people_outline, color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_gameSession!.playerIds.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.group, color: Colors.white),
+                    onPressed: _showMultiplayerDialog,
+                    tooltip: 'Multijoueur',
+                  ),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 50.0),

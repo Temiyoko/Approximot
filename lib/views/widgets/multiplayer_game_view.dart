@@ -5,23 +5,35 @@ import '../../services/auth_service.dart';
 
 class MultiplayerGameView extends StatelessWidget {
   final String gameCode;
+  final String gameType;
 
-  const MultiplayerGameView({super.key, required this.gameCode});
+  const MultiplayerGameView({
+    super.key, 
+    required this.gameCode,
+    required this.gameType,
+  });
+
+  String _getTemperatureEmoji(double score) {
+    if (score < 0) {
+      return '🧊';
+    } else if (score >= 0 && score < 25) {
+      return '❄️';
+    } else {
+      return '🔥';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    
     return StreamBuilder<GameSession?>(
       stream: MultiplayerService.watchGameSession(gameCode),
       builder: (context, snapshot) {
-        
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final session = snapshot.data;
-
-        if (session == null) {
+        if (session == null || session.gameType != gameType) {
           return const Center(child: Text('Session not found.'));
         }
 
@@ -67,8 +79,9 @@ class MultiplayerGameView extends StatelessWidget {
               else 
                 Container(
                   padding: const EdgeInsets.all(16),
-                  child: Text('Un joueur a trouvé le mot caché !',
-                    style: const TextStyle(color: Colors.green, fontSize: 18),
+                  child: const Text(
+                    'Un joueur a trouvé le mot caché !',
+                    style: TextStyle(color: Colors.green, fontSize: 18),
                   ),
                 ),
             ],
@@ -84,7 +97,7 @@ class MultiplayerGameView extends StatelessWidget {
                   color: const Color(0xFF2A2A2A),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: playerId == session.currentUserId 
+                    color: playerId == AuthService.currentUser?.uid 
                         ? const Color(0xFFF1E173).withOpacity(0.3)
                         : Colors.white24,
                   ),
@@ -95,9 +108,9 @@ class MultiplayerGameView extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
-                        playerId == session.currentUserId ? 'Vos propositions' : 'Joueur ${playerId.substring(0, 4)}',
+                        playerId == AuthService.currentUser?.uid ? 'Vos propositions' : 'Joueur ${playerId.substring(0, 4)}',
                         style: TextStyle(
-                          color: playerId == session.currentUserId 
+                          color: playerId == AuthService.currentUser?.uid 
                               ? const Color(0xFFF1E173)
                               : Colors.white70,
                           fontWeight: FontWeight.bold,
@@ -113,13 +126,19 @@ class MultiplayerGameView extends StatelessWidget {
                             guess.word,
                             style: const TextStyle(color: Colors.white),
                           ),
-                          Text(
-                            '${(guess.similarity * 100).toStringAsFixed(1)}%',
-                            style: TextStyle(
-                              color: guess.isCorrect ? Colors.green : Colors.white70,
-                              fontWeight: FontWeight.bold,
+                          if (gameType == 'lexitom')
+                            Text(
+                              '${(guess.similarity * 100).toStringAsFixed(1)}° ${_getTemperatureEmoji(guess.similarity * 100)}',
+                              style: TextStyle(
+                                color: guess.isCorrect ? Colors.green : Colors.white70,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          else
+                            Icon(
+                              guess.isCorrect ? Icons.check_circle : Icons.close,
+                              color: guess.isCorrect ? Colors.green : Colors.red,
                             ),
-                          ),
                         ],
                       ),
                     )),

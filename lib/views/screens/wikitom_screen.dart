@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/game_session.dart';
+import '../../models/guess_result.dart';
 import '../widgets/custom_bottom_bar.dart';
 import 'lexitom_screen.dart';
 import 'settings_screen.dart';
@@ -13,6 +14,8 @@ import 'package:rxdart/rxdart.dart';
 import '../../services/auth_service.dart';
 import '../../services/multiplayer_service.dart';
 import '../../services/wiki_service.dart';
+import '../../services/single_player_service.dart';
+import '../widgets/wiki_article_dialog.dart';
 
 class WikiGameScreen extends StatefulWidget {
   final bool fromContainer;
@@ -61,6 +64,73 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateTimeLeft();
     });
+
+    // Load saved wiki guesses
+    final savedGuesses = await SinglePlayerService.loadGuesses(gameType: 'wikitomGuesses');
+    if (mounted) {
+      setState(() {
+        for (final guess in savedGuesses) {
+          if (guess.isCorrect) {
+            _revealedWords.add(guess.word.toLowerCase());
+          }
+        }
+      });
+    }
+
+    await _checkForActiveGame();
+  }
+
+  Future<void> _checkForActiveGame() async {
+    final user = AuthService.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!userDoc.exists) return;
+
+      final activeGames = Map<String, String>.from(userDoc.data()?['activeGames'] ?? {});
+      final activeGame = activeGames['wikitom'];
+      
+      if (activeGame != null) {
+        final gameDoc = await FirebaseFirestore.instance
+            .collection('game_sessions')
+            .doc(activeGame)
+            .get();
+
+        if (gameDoc.exists) {
+          final gameData = gameDoc.data()!;
+          final session = GameSession.fromJson(gameData);
+          
+          if (session.gameType != 'wikitom') return;
+
+          if (mounted) {
+            setState(() {
+              _gameCode = activeGame;
+              _gameSession = session;
+
+              // Update revealed words from player guesses
+              for (var guesses in session.playerGuesses.values) {
+                for (final guess in guesses) {
+                  if (guess.isCorrect) {
+                    _revealedWords.add(guess.word.toLowerCase());
+                  }
+                }
+              }
+            });
+            
+            _subscribeToGameSession();
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking for active game: $e');
+      }
+    }
   }
 
   @override
@@ -95,14 +165,47 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
         _lastGuessResult = 'Le mot "$guess" apparaît $occurrences fois';
         _lastGuessColor = Colors.green;
         _revealedWords.add(guess);
+
+        final guessResult = GuessResult(
+          word: guess,
+          similarity: 1.0,
+          isCorrect: true,
+        );
+
+        if (_gameCode != null) {
+          MultiplayerService.addGuess(
+            _gameCode!,
+            AuthService.currentUser?.uid ?? '',
+            guessResult,
+          );
+        } else {
+          SinglePlayerService.addGuess(guessResult, gameType: 'wikitomGuesses');
+        }
       } else {
         _lastGuessResult = 'Le mot "$guess" n\'apparaît pas dans l\'article';
         _lastGuessColor = Colors.red;
+
+        final guessResult = GuessResult(
+          word: guess,
+          similarity: 0.0,
+          isCorrect: false,
+        );
+
+        if (_gameCode != null) {
+          MultiplayerService.addGuess(
+            _gameCode!,
+            AuthService.currentUser?.uid ?? '',
+            guessResult,
+          );
+        }
       }
     });
 
     if (_isTitleFullyRevealed() && !_hasShownCongratulationsDialog) {
       _hasShownCongratulationsDialog = true;
+      if (_gameCode != null) {
+        MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
+      }
       _showCongratulationsDialog();
     }
   }
@@ -480,7 +583,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                       ElevatedButton(
                         onPressed: () async {
                           if (_gameCode != null) {
-                            await MultiplayerService.leaveGame(_gameCode!);
+                            await MultiplayerService.leaveGame(_gameCode!, gameType: 'wikitom');
                             if (mounted) {
                               setState(() {
                                 _gameSession = null;
@@ -523,7 +626,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     if (userId == null) return;
 
     try {
-      final session = await MultiplayerService.createGameSession(userId);
+      final session = await MultiplayerService.createGameSession(gameType: 'wikitom');
       if (!mounted) return;
 
       setState(() {
@@ -554,7 +657,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     if (userId == null) return;
 
     try {
-      final session = await MultiplayerService.joinGameSession(code, userId);
+      final session = await MultiplayerService.joinGameSession(code, userId, gameType: 'wikitom');
       if (!mounted) return;
 
       if (session != null) {
@@ -562,6 +665,14 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
           _gameCode = code;
           _gameSession = session;
           _joinError = null;
+
+          for (var guesses in session.playerGuesses.values) {
+            for (final guess in guesses) {
+              if (guess.isCorrect) {
+                _revealedWords.add(guess.word.toLowerCase());
+              }
+            }
+          }
         });
         
         _subscribeToGameSession();
@@ -590,6 +701,33 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
         if (mounted && session != null) {
           setState(() {
             _gameSession = session;
+            
+            // Vérifier que c'est bien une partie WikiTom
+            if (session.gameType != 'wikitom') return;
+            
+            // Mettre à jour les mots révélés avec les propositions des autres joueurs
+            for (final playerGuesses in session.playerGuesses.values) {
+              for (final guess in playerGuesses) {
+                if (guess.isCorrect) {
+                  final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
+                  final occurrences = _countWordOccurrences(fullText, guess.word);
+                  if (occurrences > 0) {
+                    _revealedWords.add(guess.word.toLowerCase());
+                    
+                    // Afficher le message pour les propositions des autres joueurs
+                    if (guess.word != _controller.text && !_lastSubmittedWords.contains(guess.word)) {
+                      _lastGuessResult = 'Le mot "${guess.word}" apparaît $occurrences fois';
+                      _lastGuessColor = Colors.green;
+                      _controller.text = '';  // Clear the input instead of setting the word
+                      _lastSubmittedWords.insert(0, guess.word);
+                      if (_lastSubmittedWords.length > 10) {
+                        _lastSubmittedWords.removeLast();
+                      }
+                    }
+                  }
+                }
+              }
+            }
           });
         } else if (mounted && session == null) {
           setState(() {
@@ -639,7 +777,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'Flower',
+                          'Fleur',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -658,12 +796,15 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      'Voir l\'article complet',
-                      style: TextStyle(
-                        color: pastelYellow,
-                        fontSize: 14,
-                        fontFamily: 'Poppins',
+                    GestureDetector(
+                      onTap: () => _showArticleDialog('Fleur', directLink: 'https://fr.wikipedia.org/wiki/Fleur'),
+                      child: Text(
+                        'Voir l\'article complet',
+                        style: TextStyle(
+                          color: pastelYellow,
+                          fontSize: 14,
+                          fontFamily: 'Poppins',
+                        ),
                       ),
                     ),
                   ],
@@ -780,6 +921,26 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     return pattern.allMatches(text).length;
   }
 
+  void _showArticleDialog(String title, {String? directLink}) async {
+    try {
+      final article = await WikiService.getArticle(title);
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => WikiArticleDialog(
+            title: title,
+            content: article['content'] ?? '',
+            directLink: article['direct_link'],
+          ),
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading article: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -787,11 +948,11 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
         _focusNode.unfocus();
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: const Color(0xFF1A1A1A),
         extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           toolbarHeight: 100,
           title: const Padding(
             padding: EdgeInsets.only(top: 50.0),
@@ -809,11 +970,40 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
           actions: [
             Padding(
               padding: const EdgeInsets.only(top: 50.0),
-              child: IconButton(
-                icon: const Icon(Icons.group, color: Colors.white),
-                onPressed: _showMultiplayerDialog,
-                tooltip: 'Multijoueur',
-              ),
+              child: _gameSession != null
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A2A2A),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showMultiplayerDialog,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.people_outline, color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_gameSession!.playerIds.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.group, color: Colors.white),
+                    onPressed: _showMultiplayerDialog,
+                    tooltip: 'Multijoueur',
+                  ),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 50.0),
@@ -877,7 +1067,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                         child: Column(
                           children: [
                             const Text(
-                              'Flower',
+                              'Fleur',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -886,12 +1076,15 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              'Voir l\'article complet',
-                              style: TextStyle(
-                                color: Colors.grey[400],
-                                fontSize: 12,
-                                fontFamily: 'Poppins',
+                            GestureDetector(
+                              onTap: () => _showArticleDialog('Fleur', directLink: 'https://fr.wikipedia.org/wiki/Fleur'),
+                              child: Text(
+                                'Voir l\'article complet',
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 12,
+                                  fontFamily: 'Poppins',
+                                ),
                               ),
                             ),
                           ],
@@ -1006,8 +1199,14 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                           textInputAction: TextInputAction.search,
                           onSubmitted: (_) => _handleGuess(),
                           decoration: InputDecoration(
-                            hintText: 'Entrez votre mot...',
-                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            hintText: _lastGuessResult != null && _lastGuessColor == Colors.green 
+                                ? _lastSubmittedWords.isNotEmpty ? _lastSubmittedWords.first : 'Entrez votre mot...'
+                                : 'Entrez votre mot...',
+                            hintStyle: TextStyle(
+                              color: _lastGuessResult != null && _lastGuessColor == Colors.green 
+                                  ? Colors.grey[400]?.withOpacity(0.5)
+                                  : Colors.grey[400],
+                            ),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                           ),

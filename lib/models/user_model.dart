@@ -1,41 +1,50 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'guess_result.dart';
 
 class UserModel {
-  final String id;
+  final String uid;
   final String email;
   final String displayName;
   final String? photoURL;
-  final DateTime createdAt;
-  final DateTime lastSeen;
-  final String? activeGame;
+  final Map<String, String> activeGames;
+  final List<GuessResult> lexitomGuesses;
+  final List<GuessResult> wikitomGuesses;
+  final int? loginAttempts;
+  final DateTime? lastLoginAttempt;
 
   UserModel({
-    required this.id,
+    required this.uid,
     required this.email,
     required this.displayName,
     this.photoURL,
-    required this.createdAt,
-    required this.lastSeen,
-    this.activeGame,
+    required this.activeGames,
+    required this.lexitomGuesses,
+    required this.wikitomGuesses,
+    this.loginAttempts,
+    this.lastLoginAttempt,
   });
 
   Map<String, dynamic> toJson() => {
-    'id': id,
+    'uid': uid,
     'email': email,
     'displayName': displayName,
     'photoURL': photoURL,
-    'createdAt': createdAt.toIso8601String(),
-    'lastSeen': lastSeen.toIso8601String(),
-    'activeGame': activeGame,
+    'activeGames': activeGames,
+    'lexitomGuesses': lexitomGuesses.map((g) => g.toJson()).toList(),
+    'wikitomGuesses': wikitomGuesses.map((g) => g.toJson()).toList(),
+    'loginAttempts': loginAttempts,
+    'lastLoginAttempt': lastLoginAttempt != null ? Timestamp.fromDate(lastLoginAttempt!) : null,
   };
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-    id: json['id'],
+    uid: json['uid'],
     email: json['email'],
     displayName: json['displayName'],
     photoURL: json['photoURL'],
-    createdAt: (json['createdAt'] as Timestamp).toDate(),
-    lastSeen: (json['lastSeen'] as Timestamp).toDate(),
-    activeGame: json['activeGame'],
+    activeGames: Map<String, String>.from(json['activeGames'] ?? {}),
+    lexitomGuesses: (json['lexitomGuesses'] as List?)?.map((g) => GuessResult.fromJson(g)).toList() ?? [],
+    wikitomGuesses: (json['wikitomGuesses'] as List?)?.map((g) => GuessResult.fromJson(g)).toList() ?? [],
+    loginAttempts: json['loginAttempts'],
+    lastLoginAttempt: json['lastLoginAttempt'] != null ? (json['lastLoginAttempt'] as Timestamp).toDate() : null,
   );
 } 

@@ -5,44 +5,44 @@ import '../models/guess_result.dart';
 class SinglePlayerService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static Future<void> addGuess(GuessResult guess) async {
+  static Future<void> addGuess(GuessResult guess, {required String gameType}) async {
     final user = AuthService.currentUser;
     if (user == null) return;
 
     final userDoc = await _db.collection('users').doc(user.uid).get();
     
-    if (!userDoc.exists || userDoc.data()?['singlePlayerGuesses'] == null) {
+    if (!userDoc.exists || userDoc.data()?[gameType] == null) {
       await _db.collection('users').doc(user.uid).set({
-        'singlePlayerGuesses': [],
+        gameType: [],
       }, SetOptions(merge: true));
     }
 
-    final existingGuesses = userDoc.data()?['singlePlayerGuesses'] as List? ?? [];
+    final existingGuesses = userDoc.data()?[gameType] as List? ?? [];
     if (existingGuesses.any((g) => GuessResult.fromJson(g).word == guess.word)) {
       return;
     }
 
     await _db.collection('users').doc(user.uid).update({
-      'singlePlayerGuesses': FieldValue.arrayUnion([guess.toJson()]),
+      gameType: FieldValue.arrayUnion([guess.toJson()]),
     });
   }
 
-  static Future<List<GuessResult>> loadGuesses() async {
+  static Future<List<GuessResult>> loadGuesses({required String gameType}) async {
     final user = AuthService.currentUser;
     if (user == null) return [];
 
     final doc = await _db.collection('users').doc(user.uid).get();
     if (!doc.exists) {
       await _db.collection('users').doc(user.uid).set({
-        'singlePlayerGuesses': [],
+        gameType: [],
       }, SetOptions(merge: true));
       return [];
     }
 
-    final guesses = doc.data()?['singlePlayerGuesses'] as List?;
+    final guesses = doc.data()?[gameType] as List?;
     if (guesses == null) {
       await _db.collection('users').doc(user.uid).update({
-        'singlePlayerGuesses': [],
+        gameType: [],
       });
       return [];
     }
@@ -50,7 +50,7 @@ class SinglePlayerService {
     return guesses.map((g) => GuessResult.fromJson(g)).toList();
   }
 
-  static Future<void> clearGuesses() async {
+  static Future<void> clearGuesses({required String gameType}) async {
     final user = AuthService.currentUser;
     if (user == null) return;
 
@@ -58,13 +58,13 @@ class SinglePlayerService {
     
     if (!userDoc.exists) {
       await _db.collection('users').doc(user.uid).set({
-        'singlePlayerGuesses': [],
+        gameType: [],
       }, SetOptions(merge: true));
       return;
     }
 
     await _db.collection('users').doc(user.uid).update({
-      'singlePlayerGuesses': [],
+      gameType: [],
     });
   }
 } 

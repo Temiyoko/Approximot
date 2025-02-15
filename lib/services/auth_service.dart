@@ -16,7 +16,6 @@ class AuthService {
       'activeGame': null,
       'displayName': user.displayName ?? 'User',
       'email': user.email,
-      'lastSeen': FieldValue.serverTimestamp(),
       'photoURL': user.photoURL,
     }, SetOptions(merge: true));
   }
@@ -75,14 +74,6 @@ class AuthService {
     await _auth.signOut();
   }
 
-  static Future<void> updateUserLastSeen() async {
-    if (currentUser != null) {
-      await _db.collection('users').doc(currentUser!.uid).update({
-        'lastSeen': FieldValue.serverTimestamp(),
-      });
-    }
-  }
-
   static Future<void> createUserDocument(User user) async {
     final userDoc = _db.collection('users').doc(user.uid);
     
@@ -90,13 +81,12 @@ class AuthService {
     if (!docSnapshot.exists) {
       await userDoc.set({
         'uid': user.uid,
-        'activeGame': null,
-        'createdAt': FieldValue.serverTimestamp(),
+        'activeGames': {},
         'displayName': user.displayName ?? 'User',
         'email': user.email,
-        'lastSeen': FieldValue.serverTimestamp(),
         'photoURL': user.photoURL,
-        'singlePlayerGuesses': null,
+        'lexitomGuesses': [],
+        'wikitomGuesses': [],
       });
     }
   }
@@ -119,7 +109,6 @@ class AuthService {
       final attempts = userData['loginAttempts'] ?? 0;
       final lastAttempt = userData['lastLoginAttempt'] as Timestamp?;
       
-      // If account was locked (3 or more attempts) and it's been less than 30 minutes
       if (attempts >= 3 && lastAttempt != null) {
         final lockoutDuration = const Duration(minutes: 30);
         final now = DateTime.now();
