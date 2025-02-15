@@ -47,6 +47,8 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
   final Set<String> _revealedWords = {};
   bool _hasShownCongratulationsDialog = false;
   bool _isPageRevealed = false;
+  String? _lastGuessResult;
+  Color? _lastGuessColor;
 
   @override
   void initState() {
@@ -88,15 +90,22 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     _controller.clear();
 
     final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
-    if (fullText.contains(guess)) {
-      setState(() {
+    final occurrences = _countWordOccurrences(fullText, guess);
+    
+    setState(() {
+      if (occurrences > 0) {
+        _lastGuessResult = 'Le mot "$guess" apparaît $occurrences fois';
+        _lastGuessColor = Colors.green;
         _revealedWords.add(guess);
-      });
-
-      if (_isTitleFullyRevealed() && !_hasShownCongratulationsDialog) {
-        _hasShownCongratulationsDialog = true;
-        _showCongratulationsDialog();
+      } else {
+        _lastGuessResult = 'Le mot "$guess" n\'apparaît pas dans l\'article';
+        _lastGuessColor = Colors.red;
       }
+    });
+
+    if (_isTitleFullyRevealed() && !_hasShownCongratulationsDialog) {
+      _hasShownCongratulationsDialog = true;
+      _showCongratulationsDialog();
     }
   }
 
@@ -104,7 +113,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     return word
         .toLowerCase()
         .trim()
-        .replaceAll(RegExp(r'[^a-z0-9àäéèêëîïôöùûüÿçæœ\-]'), '');
+        .replaceAll(RegExp(r'[^a-z0-9àâäéèêëîïôöùûüÿçæœ\-]'), '');
   }
 
   void _retrieveLastGuess() {
@@ -677,7 +686,9 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     try {
       final article = await WikiService.getRandomArticle();
       if (mounted) {
-        print('Wikipedia Title: ${article['title']}');
+        if (kDebugMode) {
+          print('Wikipedia Title: ${article['title']}');
+        }
         setState(() {
           _currentArticleTitle = article['title'];
           _currentArticleContent = article['content'];
@@ -701,7 +712,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     final titleWords = _currentArticleTitle!.split(RegExp(r'\s+'));
     return titleWords.every((word) => 
       _revealedWords.contains(word.toLowerCase()) || 
-      !RegExp(r'[a-zA-Z0-9àäéèêëîïôöùûüÿçæœ]').hasMatch(word)
+      !RegExp(r'[a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ]').hasMatch(word)
     );
   }
 
@@ -764,6 +775,11 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
         );
       },
     );
+  }
+
+  int _countWordOccurrences(String text, String word) {
+    final pattern = RegExp('\\b$word\\b', caseSensitive: false);
+    return pattern.allMatches(text).length;
   }
 
   @override
@@ -987,7 +1003,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                           cursorColor: pastelYellow,
                           keyboardType: TextInputType.text,
                           inputFormatters: [
-                            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9àäéèêëîïôöùûüÿçæœ\-]')),
+                            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ\-]')),
                           ],
                           textInputAction: TextInputAction.search,
                           onSubmitted: (_) => _handleGuess(),
@@ -1036,6 +1052,28 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                   ],
                 ),
               ),
+              if (_lastGuessResult != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _lastGuessColor?.withOpacity(0.3) ?? Colors.transparent,
+                    ),
+                  ),
+                  child: Text(
+                    _lastGuessResult!,
+                    style: TextStyle(
+                      color: _lastGuessColor,
+                      fontSize: 14,
+                      fontFamily: 'Poppins',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
 
               Expanded(
                 child: Container(
@@ -1048,74 +1086,75 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                       width: 1,
                     ),
                   ),
-                  child: Stack(
-                    children: [
-                      if (_isLoadingArticle)
-                        const Center(
-                          child: CircularProgressIndicator(),
-                        )
-                      else if (_currentArticleContent != null)
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                RedactedText(
-                                  text: _currentArticleTitle ?? '',
-                                  revealedWords: _revealedWords,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.bold,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
+                        if (_isLoadingArticle)
+                          const Center(
+                            child: CircularProgressIndicator(),
+                          )
+                        else if (_currentArticleContent != null)
+                          SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  RedactedText(
+                                    text: _currentArticleTitle ?? '',
+                                    revealedWords: _revealedWords,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    forceReveal: _isPageRevealed,
                                   ),
-                                  forceReveal: _isPageRevealed,
-                                ),
-                                const SizedBox(height: 16),
-                                Container(
-                                  width: double.infinity,
-                                  height: 1,
-                                  color: pastelYellow.withOpacity(0.3),
-                                ),
-                                const SizedBox(height: 16),
-                                RedactedText(
-                                  text: _currentArticleContent!,
-                                  revealedWords: _revealedWords,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontFamily: 'Poppins',
-                                    height: 1.5,
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    width: double.infinity,
+                                    height: 1,
+                                    color: pastelYellow.withOpacity(0.3),
                                   ),
-                                  selectable: true,
-                                  forceReveal: _isPageRevealed,
-                                ),
-                              ],
+                                  const SizedBox(height: 16),
+                                  RedactedText(
+                                    text: _currentArticleContent!,
+                                    revealedWords: _revealedWords,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontFamily: 'Poppins',
+                                      height: 1.5,
+                                    ),
+                                    selectable: true,
+                                    forceReveal: _isPageRevealed,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          const Center(
+                            child: Text(
+                              'Erreur de chargement',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontFamily: 'Poppins',
+                              ),
                             ),
                           ),
-                        )
-                      else
-                        const Center(
-        child: Text(
-                            'Erreur de chargement',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontFamily: 'Poppins',
-          ),
-        ),
-      ),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: BackdropFilter(
+                        BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
                           child: Container(
                             color: Colors.black.withOpacity(0.1),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1179,7 +1218,7 @@ class RedactedText extends StatefulWidget {
 }
 
 class _RedactedTextState extends State<RedactedText> {
-  final RegExp _wordSplitPattern = RegExp(r'([a-zA-Z0-9àäéèêëîïôöùûüÿçæœ]+|[^\s]+|\s+)');
+  final RegExp _wordSplitPattern = RegExp(r'([a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ]+|[^\s]+|\s+)');
 
   @override
   Widget build(BuildContext context) {
@@ -1189,7 +1228,7 @@ class _RedactedTextState extends State<RedactedText> {
     for (final match in matches) {
       final segment = match.group(0)!;
       
-      if (!RegExp(r'[a-zA-Z0-9àäéèêëîïôöùûüÿçæœ]').hasMatch(segment)) {
+      if (!RegExp(r'[a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ]').hasMatch(segment)) {
         spans.add(TextSpan(text: segment));
         continue;
       }
