@@ -13,7 +13,6 @@ class AuthService {
 
   static Future<void> _updateUserData(User user) async {
     await _db.collection('users').doc(user.uid).set({
-      'activeGame': null,
       'displayName': user.displayName ?? 'User',
       'email': user.email,
       'photoURL': user.photoURL,
