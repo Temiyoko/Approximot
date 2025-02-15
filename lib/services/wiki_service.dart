@@ -17,19 +17,17 @@ class WikiService {
     final info = await getArticleInfo(title);
     final page = info['query']['pages'].values.first;
     
-    // Check if article meets our criteria
     final extract = page['extract'] ?? '';
     final pageviews = page['pageviews'] ?? {};
     final averageViews = pageviews.values.fold(0, (sum, views) => sum + views) / pageviews.length;
     
-    return extract.length > 500 && // Minimum length
-           averageViews > 1000000 && // Minimum popularity
-           !title.contains('(') && // Avoid disambiguation
-           !title.contains(':'); // Avoid special pages
+    return extract.length > 500 && // Taille minimum
+           averageViews > 1000000 && // Popularité minimum
+           !title.contains(':'); // Éviter les pages spéciales
   }
 
   static Future<Map<String, dynamic>> getRandomArticle() async {
-    // First get a random article title
+    // Premièrement, obtenir un titre d'article aléatoire
     final randomResponse = await http.get(Uri.parse(
       '$baseUrl?action=query&format=json&list=random'
       '&rnnamespace=0&rnlimit=1'
@@ -38,7 +36,7 @@ class WikiService {
     final randomData = json.decode(randomResponse.body);
     final title = randomData['query']['random'][0]['title'];
     
-    // Then get the article content
+    // Ensuite, obtenir le contenu de l'article
     final contentResponse = await http.get(Uri.parse(
       '$baseUrl?action=query&format=json&titles=${Uri.encodeComponent(title)}'
       '&prop=extracts&explaintext=1&exintro=1'

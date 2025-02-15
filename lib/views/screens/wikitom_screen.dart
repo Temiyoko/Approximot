@@ -1095,44 +1095,57 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                             child: CircularProgressIndicator(),
                           )
                         else if (_currentArticleContent != null)
-                          SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  RedactedText(
-                                    text: _currentArticleTitle ?? '',
-                                    revealedWords: _revealedWords,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 24,
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    forceReveal: _isPageRevealed,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Container(
-                                    width: double.infinity,
-                                    height: 1,
-                                    color: pastelYellow.withOpacity(0.3),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  RedactedText(
-                                    text: _currentArticleContent!,
-                                    revealedWords: _revealedWords,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontFamily: 'Poppins',
-                                      height: 1.5,
-                                    ),
-                                    selectable: true,
-                                    forceReveal: _isPageRevealed,
-                                  ),
+                          ShaderMask(
+                            shaderCallback: (Rect bounds) {
+                              return LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.white,
+                                  Colors.white,
                                 ],
+                              ).createShader(bounds);
+                            },
+                            blendMode: BlendMode.modulate,
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    RedactedText(
+                                      text: _currentArticleTitle ?? '',
+                                      revealedWords: _revealedWords,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      forceReveal: _isPageRevealed,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Container(
+                                      width: double.infinity,
+                                      height: 1,
+                                      color: pastelYellow.withOpacity(0.3),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    RedactedText(
+                                      text: _currentArticleContent!,
+                                      revealedWords: _revealedWords,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontFamily: 'Poppins',
+                                        height: 1.5,
+                                      ),
+                                      selectable: true,
+                                      forceReveal: _isPageRevealed,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           )
@@ -1147,12 +1160,6 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                               ),
                             ),
                           ),
-                        BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-                          child: Container(
-                            color: Colors.black.withOpacity(0.1),
-                          ),
-                        ),
                       ],
                     ),
                   ),
