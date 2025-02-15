@@ -106,10 +106,10 @@ def update_word():
 
         batch = db.batch()
         for user in db.collection('users').stream():
-            batch.update(db.collection('users').document(user.id), {
+            batch.set(db.collection('users').document(user.id), {
                 'lexitomGuesses': [],
                 'wikitomGuesses': []
-            })
+            }, merge=True)
         for game in db.collection('game_sessions').stream():
             batch.update(db.collection('game_sessions').document(game.id), {
                 'playerGuesses': {},
@@ -455,10 +455,10 @@ def choose_word():
 
         batch = db.batch()
         for user in db.collection('users').stream():
-            batch.update(db.collection('users').document(user.id), {
+            batch.set(db.collection('users').document(user.id), {
                 'lexitomGuesses': [],
                 'wikitomGuesses': []
-            })
+            }, merge=True)
         for game in db.collection('game_sessions').stream():
             batch.update(db.collection('game_sessions').document(game.id), {
                 'playerGuesses': {},
