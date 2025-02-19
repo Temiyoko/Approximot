@@ -214,6 +214,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
     if (guess.isEmpty) return;
 
     setState(() {
+      _isLoading = true;
       _lastSubmittedWords.insert(0, guess);
       if (_lastSubmittedWords.length > 10) {
         _lastSubmittedWords.removeLast();
@@ -221,10 +222,6 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       _currentSubmittedWordIndex = 0;
     });
     _controller.clear();
-
-    setState(() {
-      _isLoading = true;
-    });
 
     try {
       final similarity = await WordEmbeddingService.instance.getSimilarity(
@@ -381,7 +378,9 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+        });
         _focusNode.requestFocus();
       }
     }
@@ -1373,7 +1372,7 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                           cursorColor: pastelYellow,
                           keyboardType: TextInputType.text,
                           textInputAction: TextInputAction.search,
-                          onSubmitted: (_) => _handleGuess(),
+                          onEditingComplete: _handleGuess,
                           decoration: InputDecoration(
                             hintText: 'Entrez votre mot...',
                             hintStyle: TextStyle(color: Colors.grey[400]),

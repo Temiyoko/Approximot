@@ -149,6 +149,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     if (guess.isEmpty) return;
 
     setState(() {
+      _isLoading = true;
       _lastSubmittedWords.insert(0, guess);
       if (_lastSubmittedWords.length > 10) {
         _lastSubmittedWords.removeLast();
@@ -201,6 +202,10 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
       }
     });
 
+    if (mounted) {
+      _focusNode.requestFocus();
+    }
+
     if (_isTitleFullyRevealed() && !_hasShownCongratulationsDialog) {
       _hasShownCongratulationsDialog = true;
       if (_gameCode != null) {
@@ -208,6 +213,10 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
       }
       _showCongratulationsDialog();
     }
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   String _cleanWord(String word) {
@@ -1199,14 +1208,8 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                           textInputAction: TextInputAction.search,
                           onSubmitted: (_) => _handleGuess(),
                           decoration: InputDecoration(
-                            hintText: _lastGuessResult != null && _lastGuessColor == Colors.green 
-                                ? _lastSubmittedWords.isNotEmpty ? _lastSubmittedWords.first : 'Entrez votre mot...'
-                                : 'Entrez votre mot...',
-                            hintStyle: TextStyle(
-                              color: _lastGuessResult != null && _lastGuessColor == Colors.green 
-                                  ? Colors.grey[400]?.withOpacity(0.5)
-                                  : Colors.grey[400],
-                            ),
+                            hintText: 'Entrez votre mot...',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                           ),
@@ -1422,7 +1425,7 @@ class RedactedText extends StatefulWidget {
 }
 
 class _RedactedTextState extends State<RedactedText> {
-  final RegExp _wordSplitPattern = RegExp(r'([a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ]+|[^\s]+|\s+)');
+  final RegExp _wordSplitPattern = RegExp(r'([a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ]+|\S+|\s+)');
 
   @override
   Widget build(BuildContext context) {
