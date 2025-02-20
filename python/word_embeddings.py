@@ -77,19 +77,19 @@ def _save_last_words(old_word, old_word_date, found_count):
         last_words_ref.set({'last_words': last_words_list})
 
 def _reset_game_state():
-    """Reset user guesses and game sessions."""
+    """Reset user guesses, game sessions, and active games."""
     batch = db.batch()
     for user in db.collection('users').stream():
         batch.set(db.collection('users').document(user.id), {
             'lexitomGuesses': [],
-            'wikitomGuesses': []
+            'wikitomGuesses': [],
+            'activeGames': {}
         }, merge=True)
-    for game in db.collection('game_sessions').stream():
-        batch.update(db.collection('game_sessions').document(game.id), {
-            'playerGuesses': {},
-            'wordFound': False,
-            'winners': []
-        })
+
+    game_sessions = db.collection('game_sessions').stream()
+    for game in game_sessions:
+        batch.delete(db.collection('game_sessions').document(game.id))
+
     batch.commit()
 
 def _get_random_wiki_article():

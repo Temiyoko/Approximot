@@ -218,6 +218,33 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
         } else {
           SinglePlayerService.addGuess(guessResult, gameType: 'wikitomGuesses');
         }
+
+        if (_isTitleFullyRevealed()) {
+          final isAlreadyWinner = _gameSession?.winners.contains(AuthService.currentUser?.uid) ?? false;
+          
+          if (!isAlreadyWinner) {
+            try {
+              http.post(
+                Uri.parse('${WikiService.baseUrl}/increment-wiki-found-count'),
+              );
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error incrementing found count: $e');
+              }
+            }
+
+            if (_gameCode != null) {
+              MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
+            }
+          }
+
+          if (!isAlreadyWinner && !_hasShownWordFoundDialog) {
+            setState(() {
+              _hasShownWordFoundDialog = true;
+            });
+            _showCongratulationsDialog();
+          }
+        }
       } else {
         _lastGuessResult = 'Le mot "$guess" n\'apparaît pas dans l\'article';
         _lastGuessColor = Colors.red;
@@ -242,25 +269,6 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
       _focusNode.requestFocus();
     }
 
-    if (_isTitleFullyRevealed() && !_hasShownWordFoundDialog) {
-      setState(() {
-        _hasShownWordFoundDialog = true;
-      });
-      try {
-        http.post(
-          Uri.parse('${WikiService.baseUrl}/increment-wiki-found-count'),
-        );
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error incrementing found count: $e');
-        }
-      }
-      if (_gameCode != null) {
-        MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
-      }
-      _showCongratulationsDialog();
-    }
-
     setState(() {
       _isLoading = false;
     });
@@ -270,6 +278,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     return word
         .toLowerCase()
         .trim()
+        .replaceAll(RegExp("['''ʼ'\u2019]"), "'")
         .replaceAll(RegExp(r'[^a-z0-9àâäéèêëîïôöùûüÿçæœ\-]'), '');
   }
 
@@ -653,21 +662,21 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                               });
                             }
                           }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red[400],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[400],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: const Text(
+                            'Quitter la partie',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'Poppins',
+                            ),
                           ),
                         ),
-                        child: const Text(
-                          'Quitter la partie',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -782,27 +791,31 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
             
             if (session.gameType != 'wikitom') return;
             
+            GuessResult? latestGuess;
+            String? latestPlayerId;
+            
             for (var entry in session.playerGuesses.entries) {
               final playerId = entry.key;
               final guesses = entry.value;
               
-              for (final guess in guesses) {
-                final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
-                final occurrences = _countWordOccurrences(fullText, guess.word);
+              if (guesses.isNotEmpty) {
+                final playerLatestGuess = guesses.last;
+                latestGuess = playerLatestGuess;
+                latestPlayerId = playerId;
+              }
+            }
+            
+            if (latestGuess != null && latestPlayerId != null) {
+              final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
+              final occurrences = _countWordOccurrences(fullText, latestGuess.word);
+              
+              if (occurrences > 0 && _shouldRevealWord(latestGuess.word, latestGuess.isCorrect, latestPlayerId)) {
+                _revealedWords.add(latestGuess.word.toLowerCase());
                 
-                if (occurrences > 0 && _shouldRevealWord(guess.word, guess.isCorrect, playerId)) {
-                  _revealedWords.add(guess.word.toLowerCase());
-                  
-                  if (playerId != AuthService.currentUser?.uid &&
-                      guess.word != _controller.text && 
-                      !_lastSubmittedWords.contains(guess.word)) {
-                    _lastGuessResult = 'Le mot "${guess.word}" apparaît $occurrences fois';
-                    _lastGuessColor = Colors.green;
-                    _lastSubmittedWords.insert(0, guess.word);
-                    if (_lastSubmittedWords.length > 10) {
-                      _lastSubmittedWords.removeLast();
-                    }
-                  }
+                if (latestPlayerId != AuthService.currentUser?.uid &&
+                    latestGuess.word != _controller.text) {
+                  _lastGuessResult = 'Le mot "${latestGuess.word}" apparaît $occurrences fois';
+                  _lastGuessColor = Colors.green;
                 }
               }
             }
@@ -812,11 +825,6 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                 !session.winners.contains(AuthService.currentUser?.uid) &&
                 !_hasShownWordFoundDialog) {
               shouldShowDialog = true;
-            }
-            
-            if (session.wordFound && 
-                session.winners.isNotEmpty && 
-                !session.winners.contains(AuthService.currentUser?.uid)) {
               _hasShownWordFoundDialog = true;
             }
           });
@@ -1011,24 +1019,36 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
   }
 
   int _countWordOccurrences(String text, String word) {
-    final pattern = RegExp('\\b$word\\b', caseSensitive: false);
-    return pattern.allMatches(text).length;
+    final matches = RegExp(
+      "([\\p{L}0-9ÀÁÂÄÉÈÊËÎÏÔÖÙÛÜŸÇÆŒáàâäéèêëîïôöùûüÿçæœ]+|[^\\p{L}0-9ÀÁÂÄÉÈÊËÎÏÔÖÙÛÜŸÇÆŒáàâäéèêëîïôöùûüÿçæœ])",
+      unicode: true
+    ).allMatches(text.toLowerCase());
+    
+    final words = matches
+      .map((m) => m.group(0)!)
+      .where((segment) => RegExp("[\\p{L}0-9ÀÁÂÄÉÈÊËÎÏÔÖÙÛÜŸÇÆŒáàâäéèêëîïôöùûüÿçæœ]", unicode: true).hasMatch(segment))
+      .toList();
+    
+    final cleanedWord = _cleanWord(word);
+    return words.where((w) => _cleanWord(w) == cleanedWord).length;
   }
 
   bool _shouldRevealWord(String word, bool isCorrect, String? playerId) {
     if (_currentArticleTitle == null) return false;
     
-    final titleWords = _currentArticleTitle!.toLowerCase().split(RegExp(r'\s+')).toList();
-    final wordLower = word.toLowerCase();
+    final titleWords = _currentArticleTitle!
+        .toLowerCase()
+        .replaceAll(RegExp("['''ʼ'\u2019]"), "'")
+        .split(RegExp(r'\s+'))
+        .map((w) => _cleanWord(w))
+        .toList();
     
-    if (titleWords.contains(wordLower)) {
-      final unrevealedWords = titleWords.where((w) => !_revealedWords.contains(w)).toList();
-      if (unrevealedWords.length == 1 && unrevealedWords.first == wordLower) {
-        return playerId == AuthService.currentUser?.uid && isCorrect;
-      }
-    }
+    final cleanedWord = _cleanWord(word);
+    final revealedTitleWords = titleWords.where((w) => _revealedWords.contains(w)).length;
+    final isLastUnrevealedWord = revealedTitleWords == titleWords.length - 1 && 
+                                !_revealedWords.contains(cleanedWord);
     
-    return true;
+    return !isLastUnrevealedWord || isCorrect;
   }
 
   @override
@@ -1279,7 +1299,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                           cursorColor: pastelYellow,
                           keyboardType: TextInputType.text,
                           inputFormatters: [
-                            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ\-]')),
+                            FilteringTextInputFormatter.allow(RegExp(r'[\p{L}0-9ÀÁÂÄÉÈÊËÎÏÔÖÙÛÜŸÇÆŒáàâäéèêëîïôöùûüÿçæœ\-]', unicode: true)),
                           ],
                           textInputAction: TextInputAction.search,
                           onSubmitted: (_) => _handleGuess(),
@@ -1525,19 +1545,20 @@ class RedactedText extends StatefulWidget {
 }
 
 class _RedactedTextState extends State<RedactedText> {
-  final RegExp _wordSplitPattern = RegExp("([a-zA-Z0-9\\p{L}]+|[/+*!§:;,?°\\]@_\\\\|\\[\\](){}\"\"#~&\\s\\-'.])", unicode: true);
+  final RegExp _wordSplitPattern = RegExp(
+    "([\\p{L}0-9ÀÁÂÄÉÈÊËÎÏÔÖÙÛÜŸÇÆŒáàâäéèêëîïôöùûüÿçæœ]+|[^\\p{L}0-9ÀÁÂÄÉÈÊËÎÏÔÖÙÛÜŸÇÆŒáàâäéèêëîïôöùûüÿçæœ])",
+    unicode: true
+  );
   final Set<String> _tappedInstances = {};
   final Map<String, Timer> _tapTimers = {};
 
   void _handleWordTap(String uniqueKey) {
-    // Cancel any existing timer for this instance
     _tapTimers[uniqueKey]?.cancel();
     
     setState(() {
       _tappedInstances.add(uniqueKey);
     });
 
-    // Set timer to remove the tapped state after 3 seconds
     _tapTimers[uniqueKey] = Timer(const Duration(seconds: 1), () {
       setState(() {
         _tappedInstances.remove(uniqueKey);
@@ -1547,7 +1568,9 @@ class _RedactedTextState extends State<RedactedText> {
 
   @override
   void dispose() {
-    _tapTimers.values.forEach((timer) => timer.cancel());
+    for (var timer in _tapTimers.values) {
+      timer.cancel();
+    }
     super.dispose();
   }
 
@@ -1559,7 +1582,7 @@ class _RedactedTextState extends State<RedactedText> {
     for (final match in matches) {
       final segment = match.group(0)!;
       
-      if (RegExp("[/+*!§:;,?°\\]@_\\\\|\\[\\](){}\"\"#~&\\s\\-'.]").hasMatch(segment)) {
+      if (!RegExp("[\\p{L}0-9ÀÁÂÄÉÈÊËÎÏÔÖÙÛÜŸÇÆŒáàâäéèêëîïôöùûüÿçæœ]", unicode: true).hasMatch(segment)) {
         spans.add(TextSpan(text: segment));
         continue;
       }
