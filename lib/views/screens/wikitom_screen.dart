@@ -1555,7 +1555,6 @@ class _RedactedTextState extends State<RedactedText> {
   Widget build(BuildContext context) {
     final matches = _wordSplitPattern.allMatches(widget.text);
     final spans = <InlineSpan>[];
-    int wordCounter = 0;
 
     for (final match in matches) {
       final segment = match.group(0)!;
@@ -1568,14 +1567,12 @@ class _RedactedTextState extends State<RedactedText> {
       if (widget.forceReveal || widget.revealedWords.contains(segment.toLowerCase())) {
         spans.add(TextSpan(text: segment));
       } else {
-        // Create unique key using segment and its position
         final uniqueKey = '${segment.toLowerCase()}-${match.start}';
         final isTapped = _tappedInstances.contains(uniqueKey);
         
-        final textPainter = TextPainter(
-          text: TextSpan(text: segment, style: widget.style),
-          textDirection: TextDirection.ltr,
-        )..layout();
+        // Calculate a fixed width per character
+        final charWidth = widget.style.fontSize! * 0.65; // Adjust this multiplier as needed
+        final boxWidth = segment.length * charWidth;
 
         spans.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
@@ -1598,7 +1595,8 @@ class _RedactedTextState extends State<RedactedText> {
                 ),
               ),
               child: Container(
-                width: textPainter.width,
+                // Use fixed width based on character count instead of text measurement
+                width: boxWidth,
                 height: widget.style.fontSize! * (widget.style.height ?? 1.2),
                 alignment: Alignment.center,
                 child: Text(
