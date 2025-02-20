@@ -592,9 +592,9 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Partie en cours',
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
@@ -1413,7 +1413,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                                       revealedWords: _revealedWords,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 12,
+                                        fontSize: 14,
                                         fontFamily: 'Poppins',
                                         height: 1.5,
                                       ),
@@ -1526,11 +1526,36 @@ class RedactedText extends StatefulWidget {
 
 class _RedactedTextState extends State<RedactedText> {
   final RegExp _wordSplitPattern = RegExp("([a-zA-Z0-9\\p{L}]+|[/+*!§:;,?°\\]@_\\\\|\\[\\](){}\"\"#~&\\s\\-'.])", unicode: true);
+  final Set<String> _tappedInstances = {};
+  final Map<String, Timer> _tapTimers = {};
+
+  void _handleWordTap(String uniqueKey) {
+    // Cancel any existing timer for this instance
+    _tapTimers[uniqueKey]?.cancel();
+    
+    setState(() {
+      _tappedInstances.add(uniqueKey);
+    });
+
+    // Set timer to remove the tapped state after 3 seconds
+    _tapTimers[uniqueKey] = Timer(const Duration(seconds: 3), () {
+      setState(() {
+        _tappedInstances.remove(uniqueKey);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _tapTimers.values.forEach((timer) => timer.cancel());
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final matches = _wordSplitPattern.allMatches(widget.text);
     final spans = <InlineSpan>[];
+    int wordCounter = 0;
 
     for (final match in matches) {
       final segment = match.group(0)!;
@@ -1543,6 +1568,10 @@ class _RedactedTextState extends State<RedactedText> {
       if (widget.forceReveal || widget.revealedWords.contains(segment.toLowerCase())) {
         spans.add(TextSpan(text: segment));
       } else {
+        // Create unique key using segment and its position
+        final uniqueKey = '${segment.toLowerCase()}-${match.start}';
+        final isTapped = _tappedInstances.contains(uniqueKey);
+        
         final textPainter = TextPainter(
           text: TextSpan(text: segment, style: widget.style),
           textDirection: TextDirection.ltr,
@@ -1550,28 +1579,38 @@ class _RedactedTextState extends State<RedactedText> {
 
         spans.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xFF303030),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: Colors.grey[800]!,
-                width: 1,
-              ),
-            ),
-            child: Container(
-              width: textPainter.width,
-              height: widget.style.fontSize! * (widget.style.height ?? 1.2),
-              alignment: Alignment.center,
-              child: Text(
-                segment.length.toString(),
-                style: widget.style.copyWith(
-                  color: Colors.grey[400],
-                  height: 1,
+          child: GestureDetector(
+            onTap: () => _handleWordTap(uniqueKey),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              decoration: BoxDecoration(
+                color: isTapped 
+                    ? const Color(0xFFF1E173).withOpacity(0.2)
+                    : const Color(0xFF303030),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: isTapped
+                      ? const Color(0xFFF1E173)
+                      : Colors.grey[800]!,
+                  width: 1,
                 ),
-                textAlign: widget.textAlign,
+              ),
+              child: Container(
+                width: textPainter.width,
+                height: widget.style.fontSize! * (widget.style.height ?? 1.2),
+                alignment: Alignment.center,
+                child: Text(
+                  isTapped ? segment.length.toString() : ' ',
+                  style: widget.style.copyWith(
+                    color: isTapped 
+                        ? const Color(0xFFF1E173)
+                        : Colors.grey[400],
+                    height: 1,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           ),
