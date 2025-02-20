@@ -1413,12 +1413,13 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                                       revealedWords: _revealedWords,
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 16,
+                                        fontSize: 12,
                                         fontFamily: 'Poppins',
                                         height: 1.5,
                                       ),
                                       selectable: true,
                                       forceReveal: _isPageRevealed,
+                                      textAlign: TextAlign.justify,
                                     ),
                                   ],
                                 ),
@@ -1507,6 +1508,7 @@ class RedactedText extends StatefulWidget {
   final TextStyle style;
   final bool selectable;
   final bool forceReveal;
+  final TextAlign textAlign;
 
   const RedactedText({
     super.key,
@@ -1515,6 +1517,7 @@ class RedactedText extends StatefulWidget {
     required this.style,
     this.selectable = false,
     this.forceReveal = false,
+    this.textAlign = TextAlign.left,
   });
 
   @override
@@ -1568,7 +1571,7 @@ class _RedactedTextState extends State<RedactedText> {
                   color: Colors.grey[400],
                   height: 1,
                 ),
-                textAlign: TextAlign.center,
+                textAlign: widget.textAlign,
               ),
             ),
           ),
@@ -1582,7 +1585,13 @@ class _RedactedTextState extends State<RedactedText> {
     );
 
     return widget.selectable
-        ? SelectableText.rich(textSpan)
-        : Text.rich(textSpan);
+        ? SelectableText.rich(
+            textSpan,
+            textAlign: widget.textAlign,
+          )
+        : Text.rich(
+            textSpan,
+            textAlign: widget.textAlign,
+          );
   }
 } 
