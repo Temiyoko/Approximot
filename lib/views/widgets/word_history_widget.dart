@@ -5,6 +5,7 @@ class WordHistoryWidget extends StatelessWidget {
   final List<Map<String, dynamic>> lastWords;
   final Function(String) fetchWordWiki;
   final Stream<String?> currentWordStream;
+  final String title;
   final Color pastelYellow = const Color(0xFFF1E173);
 
   const WordHistoryWidget({
@@ -12,6 +13,7 @@ class WordHistoryWidget extends StatelessWidget {
     required this.lastWords,
     required this.fetchWordWiki,
     required this.currentWordStream,
+    this.title = 'Historique des mots',
   });
 
   @override
@@ -44,10 +46,10 @@ class WordHistoryWidget extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: Text(
-                  'Historique des mots',
+                  title,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,

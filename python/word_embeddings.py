@@ -30,10 +30,17 @@ db = firestore.client()
 
 COLLECTION = 'game'
 DOCUMENT = 'currentWord'
+WIKI_DOCUMENT = 'currentWiki'
+LAST_WORDS_DOCUMENT = 'last_words'
+LAST_WIKI_DOCUMENT = 'last_wiki_articles'
 WORD_LIST_FILE_ID = "1VAkmMXs83XdOky0_LTMq2C1qjvPya7Wu"
 FILE_ID = "1YcA6pB5Y138X0Chk66fv_eYKGLzW0N2c"
 MODEL_PATH = "model.bin"
 timezone = 'Europe/Paris'
+wikiURL = "https://fr.wikipedia.org/w/api.php"
+
+ARTICLES_FILE_ID = "15mwzZOIMjujl2DSNh--nRAcflTJs1ndk"
+ARTICLES_FILE_PATH = "articles.txt"
 
 # Add application state management
 class ApplicationState:
@@ -46,79 +53,142 @@ class ApplicationState:
 
 app_state = ApplicationState()
 
-def update_word():
-    """Update the word in Firestore"""
-    if not app_state.update_lock.acquire(blocking=False):
-        print("Update already in progress, skipping...")
-        return
-        
-    try:
-        french_tz = pytz.timezone(timezone)
-        current_time = int(datetime.now(french_tz).timestamp() * 1000)
-        
-        # Check if we're exactly at a 30-minute mark in French time
-        current_dt = datetime.fromtimestamp(current_time / 1000, french_tz)
-        minutes = current_dt.minute
-        
-        if minutes not in [0, 30]:
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Skipping update - not at 30-minute mark")
-            return
+def _save_last_words(old_word, old_word_date, found_count):
+    """Save the previous word to history."""
+    last_words_ref = db.collection(COLLECTION).document(LAST_WORDS_DOCUMENT)
+    last_words_doc = last_words_ref.get()
 
-        current_word_doc = db.collection(COLLECTION).document(DOCUMENT).get()
+    if not last_words_doc.exists:
+        last_words_ref.set({'last_words': []})
+        last_words_list = []
+    else:
+        last_words_list = last_words_doc.to_dict().get('last_words', [])
 
-        if current_word_doc.exists:
-            current_word_data = current_word_doc.to_dict()
-            old_word = current_word_data.get('word')
-            old_word_date = current_word_data.get('timestamp')
-            found_count = current_word_data.get('found_count', 0)
-            
-            # Prevent multiple updates in the same minute
-            if old_word_date and (current_time - old_word_date < 60000):
-                print("Word update skipped - too soon since last update")
-                return
-
-        last_words_doc = db.collection('game').document('last_words').get()
-        if last_words_doc.exists:
-            last_words_list = last_words_doc.to_dict().get('last_words', [])
-        else:
-            last_words_list = []
-
-        if not last_words_list or last_words_list[-1]['timestamp'] != old_word_date:
-            last_words_list.append({
-                'word': old_word,
-                'timestamp': old_word_date,
-                'found_count': found_count
-            })
+    if not last_words_list or last_words_list[-1]['timestamp'] != old_word_date:
+        last_words_list.append({
+            'word': old_word,
+            'timestamp': old_word_date,
+            'found_count': found_count
+        })
 
         if len(last_words_list) > 100:
             last_words_list.pop(0)
 
-        db.collection('game').document('last_words').set({
-            'last_words': last_words_list
+        last_words_ref.set({'last_words': last_words_list})
+
+def _reset_game_state():
+    """Reset user guesses and game sessions."""
+    batch = db.batch()
+    for user in db.collection('users').stream():
+        batch.set(db.collection('users').document(user.id), {
+            'lexitomGuesses': [],
+            'wikitomGuesses': []
+        }, merge=True)
+    for game in db.collection('game_sessions').stream():
+        batch.update(db.collection('game_sessions').document(game.id), {
+            'playerGuesses': {},
+            'wordFound': False,
+            'winners': []
+        })
+    batch.commit()
+
+def _get_random_wiki_article():
+    """Fetch a random Wikipedia article."""
+    with open(ARTICLES_FILE_PATH, 'r', encoding='utf-8') as file:
+        articles = file.readlines()
+    article_url = random.choice(articles).strip()
+
+    title = article_url.split('/')[-1]
+    title = title.replace('_', ' ')
+
+    api_url = f"https://fr.wikipedia.org/w/api.php?action=query&titles={title}&format=json&prop=extracts&explaintext"
+    response = requests.get(api_url)
+    data = response.json()
+
+    pages = data.get('query', {}).get('pages', {})
+    for page_id, page_info in pages.items():
+        if 'extract' in page_info:
+            content = page_info['extract']
+            sections = content.split('\n==')
+            extract = sections[0].strip()
+            return title, extract
+
+    raise RuntimeError("Failed to retrieve article content")
+
+def _save_last_wiki_article(current_wiki_data):
+    """Save the previous wiki article to history."""
+    old_title = current_wiki_data.get('title')
+    old_timestamp = current_wiki_data.get('timestamp')
+    found_count = current_wiki_data.get('found_count', 0)
+
+    if old_title and old_timestamp:
+        last_articles_ref = db.collection(COLLECTION).document(LAST_WIKI_DOCUMENT)
+        last_articles_doc = last_articles_ref.get()
+
+        if not last_articles_doc.exists:
+            last_articles_ref.set({'articles': []})
+            last_articles = []
+        else:
+            last_articles = last_articles_doc.to_dict().get('articles', [])
+
+        last_articles.append({
+            'title': old_title,
+            'extract': current_wiki_data.get('extract', ''),
+            'timestamp': old_timestamp,
+            'found_count': found_count
         })
 
+        if len(last_articles) > 100:
+            last_articles.pop(0)
+
+        last_articles_ref.set({'articles': last_articles})
+
+def _should_skip_update(current_time, old_word_date):
+    """Check if update should be skipped."""
+    if old_word_date and (current_time - old_word_date < 60000):
+        print("Word update skipped - too soon since last update")
+        return True
+    return False
+
+def update_word():
+    """Update the word and wiki article in Firestore"""
+    if not app_state.update_lock.acquire(blocking=False):
+        print("Update already in progress, skipping...")
+        return
+
+    try:
+        french_tz = pytz.timezone(timezone)
+        current_time = int(datetime.now(french_tz).timestamp() * 1000)
+        current_dt = datetime.fromtimestamp(current_time / 1000, french_tz)
+
+        if current_dt.minute not in [0, 30]:
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Skipping update - not at 30-minute mark")
+            return
+
+        # Handle word update
+        word_doc_ref = db.collection(COLLECTION).document(DOCUMENT)
+        current_word_doc = word_doc_ref.get()
+
+        if current_word_doc.exists:
+            current_word_data = current_word_doc.to_dict()
+            if _should_skip_update(current_time, current_word_data.get('timestamp')):
+                return
+            _save_last_words(
+                current_word_data.get('word'),
+                current_word_data.get('timestamp'),
+                current_word_data.get('found_count', 0)
+            )
+
+        # Update word
         words = load_word_list()
         if not words:
             print("Error: Word list is empty.")
             return
 
         word = random.choice(words)
+        _reset_game_state()
 
-        batch = db.batch()
-        for user in db.collection('users').stream():
-            batch.set(db.collection('users').document(user.id), {
-                'lexitomGuesses': [],
-                'wikitomGuesses': []
-            }, merge=True)
-        for game in db.collection('game_sessions').stream():
-            batch.update(db.collection('game_sessions').document(game.id), {
-                'playerGuesses': {},
-                'wordFound': False,
-                'winners': []
-            })
-        batch.commit()
-
-        db.collection(COLLECTION).document(DOCUMENT).set({
+        word_doc_ref.set({
             'word': word,
             'timestamp': current_time,
             'found_count': 0
@@ -128,6 +198,29 @@ def update_word():
         app_state.cached_timestamp = current_time
 
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Word updated successfully to: {word}")
+
+        # Handle wiki article update
+        try:
+            title, extract = _get_random_wiki_article()
+
+            wiki_doc_ref = db.collection(COLLECTION).document(WIKI_DOCUMENT)
+            current_wiki_doc = wiki_doc_ref.get()
+
+            if current_wiki_doc.exists:
+                _save_last_wiki_article(current_wiki_doc.to_dict())
+
+            wiki_doc_ref.set({
+                'title': title,
+                'extract': extract,
+                'timestamp': current_time,
+                'found_count': 0
+            })
+
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Wiki article updated successfully to: {title}")
+
+        except Exception as e:
+            print(f"Error updating wiki article: {str(e)}")
+
     except Exception as e:
         print(f"Error updating word: {str(e)}")
     finally:
@@ -144,11 +237,12 @@ scheduler.add_job(
 def init_scheduler():
     if app_state.initialized:
         return
-        
+
     if not scheduler.running:
         scheduler.start()
     download_model()
     download_word_list()
+    download_articles_list()
     load_model()
     update_word()
     app_state.initialized = True
@@ -200,7 +294,7 @@ def load_model():
     """Load the model from the specified path"""
     if app_state.model is not None:
         return
-        
+
     try:
         model_path = get_model_path()
         app_state.model = gensim.models.KeyedVectors.load_word2vec_format(
@@ -238,6 +332,25 @@ def load_word_list():
     with open("motscommuns.txt", 'r') as f:
         words = f.read().splitlines()
     return words
+
+def download_articles_list():
+    """Download the articles list from Google Drive"""
+    if not Path(ARTICLES_FILE_PATH).exists():
+        try:
+            session = requests.Session()
+            url = f"https://drive.google.com/uc?export=download&id={ARTICLES_FILE_ID}"
+            response = session.get(url)
+            response.raise_for_status()
+
+            with open(ARTICLES_FILE_PATH, 'wb') as f:
+                f.write(response.content)
+
+            print("Articles list downloaded successfully")
+        except Exception as e:
+            print(f"Error downloading articles list: {str(e)}")
+            if Path(ARTICLES_FILE_PATH).exists():
+                Path(ARTICLES_FILE_PATH).unlink()
+            raise
 
 @app.route('/update-word', methods=['POST'])
 def trigger_word_update():
@@ -354,7 +467,7 @@ def get_current_word():
         # Get time in French timezone
         french_tz = pytz.timezone(timezone)
         current_time = int(datetime.now(french_tz).timestamp() * 1000)
-        
+
         # Get the document first
         doc = db.collection(COLLECTION).document(DOCUMENT).get()
         if not doc.exists:
@@ -475,6 +588,118 @@ def choose_word():
         return jsonify({
             'success': True,
             'message': f'Word chosen successfully: {chosen_word}'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/current-wiki', methods=['GET'])
+def get_current_wiki():
+    try:
+        doc = db.collection(COLLECTION).document(WIKI_DOCUMENT).get()
+        if not doc.exists:
+            return jsonify({
+                'success': False,
+                'error': 'No article found'
+            }), 404
+
+        data = doc.to_dict()
+        french_tz = pytz.timezone(timezone)
+        current_time = int(datetime.now(french_tz).timestamp() * 1000)
+
+        return jsonify({
+            'success': True,
+            'title': data.get('title'),
+            'extract': data.get('extract'),
+            'timestamp': data.get('timestamp', 0),
+            'current_time': current_time,
+            'time_remaining': data.get('timestamp', 0) + 1800000 - current_time,  # 30 minutes in milliseconds
+            'found_count': data.get('found_count', 0)
+        })
+    except Exception as e:
+        print(f"Error in get_current_wiki: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/get-wiki-article', methods=['POST'])
+def get_wiki_article():
+    try:
+        data = request.get_json()
+        title = data.get('title')
+
+        if not title:
+            return jsonify({
+                'success': False,
+                'error': 'No title provided'
+            }), 400
+
+        article = requests.get(
+            wikiURL,
+            params={
+                "action": "query",
+                "format": "json",
+                "titles": title,
+                "prop": "extracts",
+                "explaintext": "1"
+            }
+        ).json()
+
+        page_id = list(article["query"]["pages"].keys())[0]
+        content = article["query"]["pages"][page_id].get("extract", "")
+
+        return jsonify({
+            'success': True,
+            'title': title,
+            'content': content,
+            'direct_link': f'https://fr.wikipedia.org/wiki/{title}'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/random-wiki-article', methods=['GET'])
+def get_random_wiki_article():
+    try:
+        title, extract = _get_random_wiki_article()
+        return jsonify({
+            'success': True,
+            'title': title,
+            'content': extract
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/increment-wiki-found-count', methods=['POST'])
+def increment_wiki_found_count():
+    try:
+        doc_ref = db.collection(COLLECTION).document(WIKI_DOCUMENT)
+        doc = doc_ref.get()
+
+        if not doc.exists:
+            return jsonify({
+                'success': False,
+                'error': 'No article found'
+            }), 404
+
+        current_data = doc.to_dict()
+        current_found_count = current_data.get('found_count', 0)
+        new_found_count = current_found_count + 1
+
+        doc_ref.update({
+            'found_count': new_found_count
+        })
+
+        return jsonify({
+            'success': True
         })
     except Exception as e:
         return jsonify({

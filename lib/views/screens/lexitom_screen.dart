@@ -1025,57 +1025,40 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
   }
 
   Future<void> _fetchWordWiki(String word) async {
-    final url = 'https://api-definition.fgainza.fr/app/api_wiki.php';
-    final response = await http.post(
-        Uri.parse(url),
-        body: {'motWiki': word},
-    );
+    final url = Uri.parse('https://fr.wiktionary.org/w/api.php?action=query&format=json&titles=$word&prop=extracts&explaintext');
+    final response = await http.get(url);
 
     if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        final directLink = data['direct_link'] ?? '';
-        final nature = List<String>.from(data['nature'] ?? []);
-
-        final genreData = data['genre'] as List;
-        final List<List<String>> genre = genreData.map((item) {
-            if (item is List) {
-                return List<String>.from(item);
-            } else if (item is String) {
-                return [item];
-            }
-            return <String>[];
-        }).toList();
-
-        final natureDefData = data['natureDef'] as List;
-        final List<List<Map<String, String>>> natureDef = natureDefData.map((defList) {
-            return (defList as List).map((def) {
-                final Map<String, String> convertedDef = {};
-                if (def is Map) {
-                    def.forEach((key, value) {
-                        convertedDef[key.toString()] = value.toString();
-                    });
-                }
-                return convertedDef;
-            }).toList();
-        }).toList();
+      final data = jsonDecode(response.body);
+      final pages = data['query']['pages'];
+      if (pages.isNotEmpty) {
+        final page = pages.values.first;
+        final extract = page['extract'] ?? 'Aucune définition trouvée.';
+        final directLink = 'https://fr.wiktionary.org/wiki/$word';
 
         if (mounted) {
-            showDialog(
-              context: context,
-              builder: (context) => WordInfoDialog(
-                word: word,
-                directLink: directLink,
-                nature: nature,
-                genre: genre,
-                natureDef: natureDef,
-              ),
-            );
+          showDialog(
+            context: context,
+            builder: (context) => WordInfoDialog(
+              word: word,
+              directLink: directLink,
+              nature: [], // Vous pouvez ajouter des informations supplémentaires si nécessaire
+              genre: [],
+              natureDef: [
+                [{'Définition': extract}]
+              ],
+            ),
+          );
         }
-    } else {
+      } else {
         if (kDebugMode) {
-            print('Error fetching data: ${response.statusCode}');
+          print('No definition found for $word.');
         }
+      }
+    } else {
+      if (kDebugMode) {
+        print('Error fetching data: ${response.statusCode}');
+      }
     }
   }
 
@@ -1234,7 +1217,8 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                     ),
                     const SizedBox(height: 12),
                     if (_lastWords.isNotEmpty)
-                      Center(
+                      GestureDetector(
+                        onTap: () => _fetchWordWiki(_lastWords.first['word']),
                         child: Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -1244,16 +1228,13 @@ class _MainScreenState extends State<MainScreen> with AutomaticKeepAliveClientMi
                           ),
                           child: Column(
                             children: [
-                              GestureDetector(
-                                onTap: () => _fetchWordWiki(_lastWords.first['word']),
-                                child: Text(
-                                  _lastWords.first['word'],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontFamily: 'Poppins',
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                              Text(
+                                _lastWords.first['word'],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                               const SizedBox(height: 4),

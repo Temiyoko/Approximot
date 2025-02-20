@@ -7,8 +7,10 @@ import 'package:projet/views/screens/splash_screen.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'services/word_embedding_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'services/wiki_service.dart';
 
 String? currentWord;
+Map<String, dynamic>? currentWikiArticle;
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -45,9 +47,17 @@ void main() async {
         print('Initial word to find: $currentWord');
       }
     }
+
+    final articleData = await WikiService.instance.getCurrentArticle();
+    if (articleData != null) {
+      currentWikiArticle = articleData;
+      if (kDebugMode) {
+        print('Initial article title: ${articleData['title']}');
+      }
+    }
   } catch (e) {
     if (kDebugMode) {
-      print('Error getting initial word: $e');
+      print('Error during initialization: $e');
       print('Stack trace: ${StackTrace.current}');
     }
   }

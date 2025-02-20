@@ -9,13 +9,14 @@ import 'settings_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/daily_timer_service.dart';
 import 'dart:async';
-import '../../services/word_embedding_service.dart';
 import 'package:rxdart/rxdart.dart';
 import '../../services/auth_service.dart';
 import '../../services/multiplayer_service.dart';
 import '../../services/wiki_service.dart';
 import '../../services/single_player_service.dart';
-import '../widgets/wiki_article_dialog.dart';
+import 'package:http/http.dart' as http;
+import '../widgets/word_history_widget.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class WikiGameScreen extends StatefulWidget {
   final bool fromContainer;
@@ -46,16 +47,18 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
   String? _currentArticleContent;
   bool _isLoadingArticle = true;
   final Set<String> _revealedWords = {};
-  bool _hasShownCongratulationsDialog = false;
+  bool _hasShownWordFoundDialog = false;
   bool _isPageRevealed = false;
   String? _lastGuessResult;
   Color? _lastGuessColor;
+  String? _lastArticleTimestamp;
+  List<Map<String, dynamic>> _lastArticles = [];
 
   @override
   void initState() {
     super.initState();
     _initializeApp();
-    _loadRandomArticle();
+    _loadLastArticles();
   }
 
   Future<void> _initializeApp() async {
@@ -65,19 +68,48 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
       _updateTimeLeft();
     });
 
-    // Load saved wiki guesses
     final savedGuesses = await SinglePlayerService.loadGuesses(gameType: 'wikitomGuesses');
     if (mounted) {
       setState(() {
         for (final guess in savedGuesses) {
-          if (guess.isCorrect) {
-            _revealedWords.add(guess.word.toLowerCase());
-          }
+          _revealedWords.add(guess.word.toLowerCase());
         }
+        _hasShownWordFoundDialog = _isTitleFullyRevealed();
       });
     }
 
+    await _loadCurrentArticle();
     await _checkForActiveGame();
+  }
+
+  Future<void> _loadCurrentArticle() async {
+    setState(() {
+      _isLoadingArticle = true;
+    });
+
+    try {
+      final article = await WikiService.instance.getCurrentArticle();
+      if (article != null && mounted) {
+        if (_lastArticleTimestamp != article['timestamp'].toString()) {
+          _hasShownWordFoundDialog = false;
+          _lastArticleTimestamp = article['timestamp'].toString();
+        }
+        setState(() {
+          _currentArticleTitle = article['title'];
+          _currentArticleContent = article['extract'];
+          _isLoadingArticle = false;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading current article: $e');
+      }
+      if (mounted) {
+        setState(() {
+          _isLoadingArticle = false;
+        });
+      }
+    }
   }
 
   Future<void> _checkForActiveGame() async {
@@ -112,10 +144,14 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
               _gameCode = activeGame;
               _gameSession = session;
 
-              // Update revealed words from player guesses
+              final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
               for (var guesses in session.playerGuesses.values) {
                 for (final guess in guesses) {
-                  if (guess.isCorrect) {
+                  final occurrences = _countWordOccurrences(fullText, guess.word);
+                  final isLastWord = _currentArticleTitle != null && 
+                      _currentArticleTitle!.toLowerCase().split(RegExp(r'\s+')).last == guess.word.toLowerCase();
+                  
+                  if (occurrences > 0 && (!isLastWord || guess.isCorrect)) {
                     _revealedWords.add(guess.word.toLowerCase());
                   }
                 }
@@ -170,7 +206,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
         final guessResult = GuessResult(
           word: guess,
           similarity: 1.0,
-          isCorrect: true,
+          isCorrect: _isTitleFullyRevealed(),
         );
 
         if (_gameCode != null) {
@@ -206,8 +242,19 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
       _focusNode.requestFocus();
     }
 
-    if (_isTitleFullyRevealed() && !_hasShownCongratulationsDialog) {
-      _hasShownCongratulationsDialog = true;
+    if (_isTitleFullyRevealed() && !_hasShownWordFoundDialog) {
+      setState(() {
+        _hasShownWordFoundDialog = true;
+      });
+      try {
+        http.post(
+          Uri.parse('${WikiService.baseUrl}/increment-wiki-found-count'),
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error incrementing found count: $e');
+        }
+      }
       if (_gameCode != null) {
         MultiplayerService.notifyWordFound(_gameCode!, AuthService.currentUser?.uid ?? '');
       }
@@ -312,6 +359,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     if (difference.isNegative) {
       setState(() {
         _timeLeft = '00:00:00';
+        _isPageRevealed = false;
       });
       Future.delayed(const Duration(milliseconds: 100), () {
         _updateCurrentWiki();
@@ -319,26 +367,27 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     } else {
       setState(() {
         _timeLeft = DailyTimerService.formatDuration(difference);
+        if (difference.inSeconds <= 5 && _isPageRevealed) {
+          _isPageRevealed = false;
+        }
       });
     }
   }
 
   Future<void> _updateCurrentWiki() async {
     try {
-      final wikiData = await WordEmbeddingService.instance.getCurrentWord();
+      final wikiData = await WikiService.instance.getCurrentArticle();
       if (wikiData != null && mounted) {
-        final newWiki = wikiData['word'];
         final timeRemaining = Duration(milliseconds: wikiData['timeRemaining']);
         
         if (mounted) {
           setState(() {
-            currentWiki = newWiki;
             _wordExpiryTime = DateTime.now().add(timeRemaining);
             if (_timeLeft == '00:00:00') {
               _timeLeft = DailyTimerService.formatDuration(timeRemaining);
             }
           });
-          _currentWikiSubject.add(newWiki);
+          await _loadCurrentArticle();
         }
       }
     } catch (e) {
@@ -670,15 +719,33 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
       if (!mounted) return;
 
       if (session != null) {
+        final savedGuesses = await SinglePlayerService.loadGuesses(gameType: 'wikitomGuesses');
+        for (final guess in savedGuesses) {
+          final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
+          final occurrences = _countWordOccurrences(fullText, guess.word);
+          if (occurrences > 0) {
+            await MultiplayerService.addGuess(code, userId, guess);
+          }
+        }
+
         setState(() {
           _gameCode = code;
           _gameSession = session;
           _joinError = null;
 
-          for (var guesses in session.playerGuesses.values) {
-            for (final guess in guesses) {
-              if (guess.isCorrect) {
+          final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
+          for (var entry in session.playerGuesses.entries) {
+            final playerId = entry.key;
+            if (playerId == userId) continue;
+            
+            for (final guess in entry.value) {
+              final occurrences = _countWordOccurrences(fullText, guess.word);
+              if (occurrences > 0 && _shouldRevealWord(guess.word, guess.isCorrect, playerId)) {
                 _revealedWords.add(guess.word.toLowerCase());
+                _lastSubmittedWords.insert(0, guess.word);
+                if (_lastSubmittedWords.length > 10) {
+                  _lastSubmittedWords.removeLast();
+                }
               }
             }
           }
@@ -708,36 +775,114 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     if (_gameCode != null) {
       _gameSubscription = MultiplayerService.watchGameSession(_gameCode!).listen((session) {
         if (mounted && session != null) {
+          bool shouldShowDialog = false;
+          
           setState(() {
             _gameSession = session;
             
-            // Vérifier que c'est bien une partie WikiTom
             if (session.gameType != 'wikitom') return;
             
-            // Mettre à jour les mots révélés avec les propositions des autres joueurs
-            for (final playerGuesses in session.playerGuesses.values) {
-              for (final guess in playerGuesses) {
-                if (guess.isCorrect) {
-                  final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
-                  final occurrences = _countWordOccurrences(fullText, guess.word);
-                  if (occurrences > 0) {
-                    _revealedWords.add(guess.word.toLowerCase());
-                    
-                    // Afficher le message pour les propositions des autres joueurs
-                    if (guess.word != _controller.text && !_lastSubmittedWords.contains(guess.word)) {
-                      _lastGuessResult = 'Le mot "${guess.word}" apparaît $occurrences fois';
-                      _lastGuessColor = Colors.green;
-                      _controller.text = '';  // Clear the input instead of setting the word
-                      _lastSubmittedWords.insert(0, guess.word);
-                      if (_lastSubmittedWords.length > 10) {
-                        _lastSubmittedWords.removeLast();
-                      }
+            for (var entry in session.playerGuesses.entries) {
+              final playerId = entry.key;
+              final guesses = entry.value;
+              
+              for (final guess in guesses) {
+                final fullText = '${_currentArticleTitle ?? ''} ${_currentArticleContent ?? ''}'.toLowerCase();
+                final occurrences = _countWordOccurrences(fullText, guess.word);
+                
+                if (occurrences > 0 && _shouldRevealWord(guess.word, guess.isCorrect, playerId)) {
+                  _revealedWords.add(guess.word.toLowerCase());
+                  
+                  if (playerId != AuthService.currentUser?.uid &&
+                      guess.word != _controller.text && 
+                      !_lastSubmittedWords.contains(guess.word)) {
+                    _lastGuessResult = 'Le mot "${guess.word}" apparaît $occurrences fois';
+                    _lastGuessColor = Colors.green;
+                    _lastSubmittedWords.insert(0, guess.word);
+                    if (_lastSubmittedWords.length > 10) {
+                      _lastSubmittedWords.removeLast();
                     }
                   }
                 }
               }
             }
+
+            if (session.wordFound && 
+                session.winners.isNotEmpty && 
+                !session.winners.contains(AuthService.currentUser?.uid) &&
+                !_hasShownWordFoundDialog) {
+              shouldShowDialog = true;
+            }
+            
+            if (session.wordFound && 
+                session.winners.isNotEmpty && 
+                !session.winners.contains(AuthService.currentUser?.uid)) {
+              _hasShownWordFoundDialog = true;
+            }
           });
+
+          if (shouldShowDialog) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                showDialog(
+                  context: context,
+                  builder: (context) => Dialog(
+                    backgroundColor: const Color(0xFF303030),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Article trouvé !',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'Un joueur a trouvé l\'article !',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                              height: 1.3,
+                              fontFamily: 'Poppins',
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: pastelYellow,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              'OK',
+                              style: TextStyle(
+                                color: Color(0xFF303030),
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+            });
+          }
         } else if (mounted && session == null) {
           setState(() {
             _gameSession = null;
@@ -748,6 +893,28 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     }
   }
 
+  Widget _buildEyeIcon() {
+    if (_wordExpiryTime == null) return const SizedBox.shrink();
+    
+    final difference = _wordExpiryTime!.difference(DateTime.now());
+    final isDisabled = difference.inSeconds <= 5;
+
+    return IconButton(
+      icon: Icon(
+        _isPageRevealed ? Icons.visibility_off : Icons.visibility,
+        color: isDisabled ? Colors.grey : pastelYellow,
+      ),
+      onPressed: isDisabled ? null : () {
+        setState(() {
+          _isPageRevealed = !_isPageRevealed;
+        });
+      },
+      tooltip: isDisabled 
+        ? 'Article bientôt indisponible' 
+        : (_isPageRevealed ? 'Masquer l\'article' : 'Révéler l\'article'),
+    );
+  }
+
   void _showMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -756,103 +923,21 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Articles précédents',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF303030),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: pastelYellow.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Fleur',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          '100 joueurs',
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 14,
-                            fontFamily: 'Poppins',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () => _showArticleDialog('Fleur', directLink: 'https://fr.wikipedia.org/wiki/Fleur'),
-                      child: Text(
-                        'Voir l\'article complet',
-                        style: TextStyle(
-                          color: pastelYellow,
-                          fontSize: 14,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        final sortedArticles = List<Map<String, dynamic>>.from(_lastArticles)
+          ..sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
+
+        return WordHistoryWidget(
+          title: 'Historique des articles',
+          lastWords: sortedArticles.map((article) => {
+            'word': article['title'],
+            'timestamp': DateTime.fromMillisecondsSinceEpoch(article['timestamp']),
+            'found_count': article['found_count'] ?? 0,
+          }).toList(),
+          fetchWordWiki: (title) => launchUrl(Uri.parse('https://fr.wikipedia.org/wiki/$title')),
+          currentWordStream: _currentWikiSubject.stream,
         );
       },
     );
-  }
-
-  Future<void> _loadRandomArticle() async {
-    setState(() {
-      _isLoadingArticle = true;
-    });
-
-    try {
-      final article = await WikiService.getRandomArticle();
-      if (mounted) {
-        if (kDebugMode) {
-          print('Wikipedia Title: ${article['title']}');
-        }
-        setState(() {
-          _currentArticleTitle = article['title'];
-          _currentArticleContent = article['content'];
-          _isLoadingArticle = false;
-        });
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error loading article: $e');
-      }
-      if (mounted) {
-        setState(() {
-          _isLoadingArticle = false;
-        });
-      }
-    }
   }
 
   bool _isTitleFullyRevealed() {
@@ -930,24 +1015,20 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
     return pattern.allMatches(text).length;
   }
 
-  void _showArticleDialog(String title, {String? directLink}) async {
-    try {
-      final article = await WikiService.getArticle(title);
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => WikiArticleDialog(
-            title: title,
-            content: article['content'] ?? '',
-            directLink: article['direct_link'],
-          ),
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error loading article: $e');
+  bool _shouldRevealWord(String word, bool isCorrect, String? playerId) {
+    if (_currentArticleTitle == null) return false;
+    
+    final titleWords = _currentArticleTitle!.toLowerCase().split(RegExp(r'\s+')).toList();
+    final wordLower = word.toLowerCase();
+    
+    if (titleWords.contains(wordLower)) {
+      final unrevealedWords = titleWords.where((w) => !_revealedWords.contains(w)).toList();
+      if (unrevealedWords.length == 1 && unrevealedWords.first == wordLower) {
+        return playerId == AuthService.currentUser?.uid && isCorrect;
       }
     }
+    
+    return true;
   }
 
   @override
@@ -1056,7 +1137,7 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const Text(
-                      'Article d\'hier',
+                      "Article d'hier",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -1065,41 +1146,45 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: pastelYellow.withOpacity(0.3)),
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              'Fleur',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontFamily: 'Poppins',
-                                fontWeight: FontWeight.w500,
-                              ),
+                    if (_lastArticles.isNotEmpty)
+                      Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            final title = _lastArticles.last['title'];
+                            launchUrl(Uri.parse('https://fr.wikipedia.org/wiki/${Uri.encodeComponent(title)}'));
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2A2A2A),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: pastelYellow.withOpacity(0.3)),
                             ),
-                            const SizedBox(height: 4),
-                            GestureDetector(
-                              onTap: () => _showArticleDialog('Fleur', directLink: 'https://fr.wikipedia.org/wiki/Fleur'),
-                              child: Text(
-                                'Voir l\'article complet',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 12,
-                                  fontFamily: 'Poppins',
+                            child: Column(
+                              children: [
+                                Text(
+                                  _lastArticles.last['title'],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Voir l\'article complet',
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: 12,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -1176,19 +1261,10 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
                 ),
                 child: Row(
                   children: [
-                    if (_isTitleFullyRevealed())
-                      IconButton(
-                        icon: Icon(
-                          _isPageRevealed ? Icons.visibility_off : Icons.visibility,
-                          color: pastelYellow,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _isPageRevealed = !_isPageRevealed;
-                          });
-                        },
-                        tooltip: _isPageRevealed ? 'Masquer l\'article' : 'Révéler l\'article',
-                      ),
+                    if (_isTitleFullyRevealed() || 
+                        (_gameSession?.wordFound ?? false) && 
+                        (_gameSession?.winners.isNotEmpty ?? false))
+                      _buildEyeIcon(),
                     Expanded(
                       child: TextSelectionTheme(
                         data: TextSelectionThemeData(
@@ -1395,12 +1471,33 @@ class _WikiGameScreenState extends State<WikiGameScreen> {
   Stream<int> _getPlayersFoundCount() {
     return FirebaseFirestore.instance
         .collection('game')
-        .doc('currentWord')
+        .doc('currentWiki')
         .snapshots()
         .map((snapshot) {
           if (!snapshot.exists) return 0;
           return snapshot.data()?['found_count'] ?? 0;
         });
+  }
+
+  Future<void> _loadLastArticles() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('game')
+          .doc('last_wiki_articles')
+          .get();
+
+      if (snapshot.exists) {
+        setState(() {
+          _lastArticles = List<Map<String, dynamic>>.from(
+            snapshot.data()?['articles'] ?? [],
+          );
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading last articles: $e');
+      }
+    }
   }
 }
 
@@ -1425,7 +1522,7 @@ class RedactedText extends StatefulWidget {
 }
 
 class _RedactedTextState extends State<RedactedText> {
-  final RegExp _wordSplitPattern = RegExp(r'([a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ]+|\S+|\s+)');
+  final RegExp _wordSplitPattern = RegExp("([a-zA-Z0-9\\p{L}]+|[/+*!§:;,?°\\]@_\\\\|\\[\\](){}\"\"#~&\\s\\-'.])", unicode: true);
 
   @override
   Widget build(BuildContext context) {
@@ -1435,7 +1532,7 @@ class _RedactedTextState extends State<RedactedText> {
     for (final match in matches) {
       final segment = match.group(0)!;
       
-      if (!RegExp(r'[a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ]').hasMatch(segment)) {
+      if (RegExp("[/+*!§:;,?°\\]@_\\\\|\\[\\](){}\"\"#~&\\s\\-'.]").hasMatch(segment)) {
         spans.add(TextSpan(text: segment));
         continue;
       }

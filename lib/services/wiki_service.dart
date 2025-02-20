@@ -1,86 +1,99 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../config/env.dart';
 
 class WikiService {
-  static const String baseUrl = 'https://fr.wikipedia.org/w/api.php';
-  
-  static Future<Map<String, dynamic>> getArticleInfo(String title) async {
-    final response = await http.get(Uri.parse(
-      '$baseUrl?action=query&format=json&titles=${Uri.encodeComponent(title)}'
-      '&prop=extracts|pageviews&explaintext=1&exintro=1'
-    ));
-    
-    return json.decode(response.body);
-  }
-  
-  static Future<bool> isValidArticle(String title) async {
-    final info = await getArticleInfo(title);
-    final page = info['query']['pages'].values.first;
-    
-    final extract = page['extract'] ?? '';
-    final pageviews = page['pageviews'] ?? {};
-    final averageViews = pageviews.values.fold(0, (sum, views) => sum + views) / pageviews.length;
-    
-    return extract.length > 500 && // Taille minimum
-           averageViews > 1000000 && // Popularité minimum
-           !title.contains(':'); // Éviter les pages spéciales
+  static WikiService? _instance;
+  static String baseUrl = Environment.herokuApiUrl;
+
+  static WikiService get instance {
+    _instance ??= WikiService._();
+    return _instance!;
   }
 
-  static Future<Map<String, dynamic>> getRandomArticle() async {
-    while (true) {
-      // Premièrement, obtenir un titre d'article aléatoire
-      final randomResponse = await http.get(Uri.parse(
-        '$baseUrl?action=query&format=json&list=random'
-        '&rnnamespace=0&rnlimit=1'
-      ));
-      
-      final randomData = json.decode(randomResponse.body);
-      final title = randomData['query']['random'][0]['title'];
-      
-      // Vérifier si le titre contient uniquement des caractères de l'alphabet français
-      final validTitlePattern = RegExp(r"^[a-zA-Z0-9àâäéèêëîïôöùûüÿçæœ\s\-\']+$");
-      if (!validTitlePattern.hasMatch(title)) {
-        continue;
-      }
+  WikiService._();
 
-      // Ensuite, obtenir le contenu de l'article
-      final contentResponse = await http.get(Uri.parse(
-        '$baseUrl?action=query&format=json&titles=${Uri.encodeComponent(title)}'
-        '&prop=extracts&explaintext=1&exintro=1'
-      ));
-      
-      final contentData = json.decode(contentResponse.body);
-      final pages = contentData['query']['pages'];
-      final page = pages[pages.keys.first];
-      final content = page['extract'] ?? '';
-      
-      // Vérifier si le contenu est suffisamment long
-      if (content.length < 100) {  // Skip articles that are too short
-        continue;
+  Future<Map<String, dynamic>?> getCurrentArticle() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/current-wiki'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success']) {
+          return {
+            'title': data['title'],
+            'extract': data['extract'],
+            'timeRemaining': data['time_remaining'],
+            'timestamp': data['timestamp'],
+          };
+        }
       }
-      
-      return {
-        'title': title,
-        'content': content,
-      };
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting current article: $e');
+      }
+      return null;
     }
   }
 
-  static Future<Map<String, dynamic>> getArticle(String title) async {
-    final response = await http.get(Uri.parse(
-      '$baseUrl?action=query&format=json&titles=${Uri.encodeComponent(title)}'
-      '&prop=extracts&explaintext=1&exintro=1'
-    ));
-    
-    final data = json.decode(response.body);
-    final pages = data['query']['pages'];
-    final page = pages[pages.keys.first];
-    final content = page['extract'] ?? '';
-    
-    return {
-      'title': title,
-      'content': content,
-      'direct_link': 'https://fr.wikipedia.org/wiki/${Uri.encodeComponent(title)}'
-    };
+  Future<Map<String, dynamic>> getArticle(String title) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/get-wiki-article'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'title': title}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success']) {
+          String content = data['content'];
+          if (content.contains('=')) {
+            content = content.substring(0, content.indexOf('='));
+          }
+          return {
+            'title': data['title'],
+            'content': content.trim(),
+            'direct_link': data['direct_link'],
+          };
+        }
+      }
+      throw Exception('Failed to load article');
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting article: $e');
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getRandomArticle() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/random-wiki-article'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success']) {
+          return {
+            'title': data['title'],
+            'content': data['content'],
+          };
+        }
+      }
+      throw Exception('Failed to load random article');
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting random article: $e');
+      }
+      rethrow;
+    }
   }
 } 
