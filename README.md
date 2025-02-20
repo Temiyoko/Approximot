@@ -12,7 +12,3 @@ Approximot est une application mobile inspirée de Semantle proposant deux jeux 
 
 - [Yukiwi](https://www.github.com/Temiyoko)
 - [Justfreezo](https://www.github.com/Justfreezo)
-
-## Credits
-
-- Ce projet utilise l'API [api-definition](github.com/FredGainza/api-definition) sous la licence GNU General Public License v3.0 (GPLv3).
