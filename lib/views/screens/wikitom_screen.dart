@@ -1538,7 +1538,7 @@ class _RedactedTextState extends State<RedactedText> {
     });
 
     // Set timer to remove the tapped state after 3 seconds
-    _tapTimers[uniqueKey] = Timer(const Duration(seconds: 3), () {
+    _tapTimers[uniqueKey] = Timer(const Duration(seconds: 1), () {
       setState(() {
         _tappedInstances.remove(uniqueKey);
       });
