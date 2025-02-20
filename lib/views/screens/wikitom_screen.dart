@@ -1559,7 +1559,7 @@ class _RedactedTextState extends State<RedactedText> {
       _tappedInstances.add(uniqueKey);
     });
 
-    _tapTimers[uniqueKey] = Timer(const Duration(seconds: 3), () {
+    _tapTimers[uniqueKey] = Timer(const Duration(seconds: 1), () {
       setState(() {
         _tappedInstances.remove(uniqueKey);
       });
