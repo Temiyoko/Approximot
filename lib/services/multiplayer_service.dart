@@ -46,7 +46,6 @@ class MultiplayerService {
           } else {
             batch.update(_db.collection('game_sessions').doc(activeGame), {
               'playerIds': FieldValue.arrayRemove([user.uid]),
-              'playerGuesses.${user.uid}': FieldValue.delete(),
             });
           }
         }
@@ -91,7 +90,6 @@ class MultiplayerService {
           } else {
             batch.update(_db.collection('game_sessions').doc(activeGame), {
               'playerIds': FieldValue.arrayRemove([playerId]),
-              'playerGuesses.$playerId': FieldValue.delete(),
             });
           }
         }
@@ -177,23 +175,12 @@ class MultiplayerService {
       final remainingPlayers = List<String>.from(gameData.playerIds)
         ..remove(user.uid);
 
-      final allGuesses = <GuessResult>[];
+      final allGuesses = <GuessResult>{};
       
-      final userGuesses = gameData.playerGuesses[user.uid] ?? [];
-      for (final guess in userGuesses) {
-        if (!allGuesses.any((g) => g.word == guess.word)) {
-          allGuesses.add(guess);
-        }
-      }
-
       for (final entry in gameData.playerGuesses.entries) {
-        if (entry.key != user.uid) {
-          for (final guess in entry.value) {
-            if (!guess.isCorrect || (guess.isCorrect && gameData.winners.contains(user.uid))) {
-              if (!allGuesses.any((g) => g.word == guess.word)) {
-                allGuesses.add(guess);
-              }
-            }
+        for (final guess in entry.value) {
+          if (!guess.isCorrect || entry.key == user.uid || gameData.winners.contains(user.uid)) {
+            allGuesses.add(guess);
           }
         }
       }
@@ -222,7 +209,7 @@ class MultiplayerService {
           await AuthService.createUserDocument(user);
           batch.update(_db.collection('users').doc(user.uid), {
             gameType == 'lexitom' ? 'lexitomGuesses' : 'wikitomGuesses': 
-                allGuesses.map((g) => g.toJson()).toList(),
+                allGuesses.toList().map((g) => g.toJson()).toList(),
           });
         }
       }
@@ -232,7 +219,6 @@ class MultiplayerService {
       } else {
         batch.update(_db.collection('game_sessions').doc(code), {
           'playerIds': FieldValue.arrayRemove([user.uid]),
-          'playerGuesses.${user.uid}': FieldValue.delete(),
         });
       }
 
