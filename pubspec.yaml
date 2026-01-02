@@ -38,7 +38,7 @@ dependencies:
   cloud_firestore: ^4.17.5
   uuid: ^4.2.2
   intl: ^0.19.0
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.3.4
   flutter_native_splash: ^2.3.13
   http: ^1.2.0
   rxdart : ^0.28.0
